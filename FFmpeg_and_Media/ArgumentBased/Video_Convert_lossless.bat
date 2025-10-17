@@ -1,4 +1,8 @@
 @echo off
+rem このバッチのヘルプはファイル末尾にあります（-h / --help または未引数で表示）
+if "%~1"=="" goto :show_help
+if /i "%~1"=="-h" goto :show_help
+if /i "%~1"=="--help" goto :show_help
 rem 遅延環境変数を有効にする。ループ内で変数を正しく扱うために必要じゃ。
 setlocal enabledelayedexpansion
 
@@ -279,3 +283,25 @@ if exist "%temp_audio_file%" (
 rem 作成した一時フォルダを削除
 rmdir "%TEMP_DIR%" >nul 2>nul
 goto :eof
+
+:show_help
+echo.
+echo [概要]
+echo   可逆（映像コピー）主体で動画を再パッケージします。session.mpd を検知した場合は固定設定モードで自動処理。
+echo.
+echo [使い方]
+echo   - 通常: %~nx0 ^<file1^> ^<file2^> ...
+echo   - フォルダ: %~nx0 ^<folder1^> ^<folder2^> ...  (各フォルダ内の session.mpd を検出)
+echo   - mpd直指定: %~nx0 session.mpd
+echo.
+echo [主なオプション(対話式)]
+echo   - 出力拡張子選択 (mp4/m4v/mkv/mov/任意)
+echo   - ストリーム保持(全保持) または 音声の個別処理(copy/PCM/QAAC)
+echo   - 元ファイル削除の有無
+echo.
+echo [前提]
+echo   ffmpeg, qaac64 が PATH に必要。日本語名対応のため chcp 932 を利用します。
+echo.
+echo 何かキーを押すと閉じます...
+pause
+exit /b

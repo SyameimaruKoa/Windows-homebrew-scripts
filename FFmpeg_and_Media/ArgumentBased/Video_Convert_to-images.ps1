@@ -1,4 +1,25 @@
-﻿# --- 初期設定 ---
+﻿#region ヘルプ
+<#
+.SYNOPSIS
+    動画から静止画を連番で書き出します。
+
+.DESCRIPTION
+    指定した動画ファイルから、PNG もしくは JPG の連番画像を出力します。
+    任意でカット範囲（-ss / -to）を設定し、フレームレートを指定してJPG出力も可能です。
+
+.PARAMETER files
+    ドラッグ＆ドロップで渡された動画ファイル配列。
+
+.EXAMPLE
+    PS> .\Video_Convert_to-images.ps1 video.mp4
+    対話的に設定を確認し、<video>_images/ に画像を書き出します。
+
+.NOTES
+    ・ffmpeg が PATH に通っている必要があります。
+#>
+#endregion
+
+# --- 初期設定 ---
 # このスクリプトに渡されたファイルパスを一つずつ処理する
 Param($files)
 

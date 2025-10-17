@@ -1,4 +1,8 @@
 @echo off
+rem このバッチのヘルプはファイル末尾にあります（-h / --help または未引数で表示）
+if "%~1"=="" goto :show_help
+if /i "%~1"=="-h" goto :show_help
+if /i "%~1"=="--help" goto :show_help
 chcp 932
 %~d1
 cd "%~dp0"
@@ -79,4 +83,23 @@ if not "%text2%"=="" echo S_TEXT/UTF8, "%text2%",font-name="Noto Serif JP Light"
 shift
 if not "%~1"=="" goto roop
 timeout /nobreak 3
+exit /b
+
+:show_help
+echo.
+echo [概要]
+echo   tsMuxeR で動画に複数のAAC音声と字幕(SRT)を追加して m2ts を生成します。
+echo.
+echo [使い方]
+echo   %~nx0 ^<video^>
+echo   ^(対話で音声/字幕ファイルを複数指定^)
+echo.
+echo [出力]
+echo   C:\Users\kouki\Desktop\BD\^<元名^>.m2ts
+echo.
+echo [前提]
+echo   ・C:\Users\kouki\Documents\tsMuxeR_2.6.12\ に tsMuxeR.exe が存在すること。
+echo.
+echo 何かキーを押すと閉じます...
+pause
 exit /b

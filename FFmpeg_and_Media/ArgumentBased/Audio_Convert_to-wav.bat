@@ -1,4 +1,8 @@
 @echo off
+rem このバッチのヘルプはファイル末尾にあります（-h / --help または未引数で表示）
+if "%~1"=="" goto :show_help
+if /i "%~1"=="-h" goto :show_help
+if /i "%~1"=="--help" goto :show_help
 chcp 932
 
 rem 選択スキップ用(通常時はgoto skipまでをコメントアウト)
@@ -45,3 +49,22 @@ shift
 if not "%~1"=="" goto 2ormore
 pause
 exit
+
+
+:show_help
+echo.
+echo [概要]
+echo   音声ファイルを WAV に変換します。量子化ビット数、サンプリング周波数、チャンネル数を選択可能。
+echo.
+echo [使い方]
+echo   %~nx0 ^<file_or_folder^> [more files...]
+echo.
+echo [出力]
+echo   同階層に「^<元名^> ffmpeg.wav」または「ffmpeg\\^<元名^>.wav」を作成します。
+echo.
+echo [補足]
+echo   ・ffmpeg が PATH に通っている必要があります。
+echo.
+echo 何かキーを押すと閉じます...
+pause
+exit /b

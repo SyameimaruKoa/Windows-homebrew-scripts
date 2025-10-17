@@ -1,4 +1,8 @@
 @echo off
+rem このバッチのヘルプはファイル末尾にあります（-h / --help または未引数で表示）
+if "%~1"=="" goto :show_help
+if /i "%~1"=="-h" goto :show_help
+if /i "%~1"=="--help" goto :show_help
 if "%comparison%"=="yes" goto 2ormore
 
 chcp 932
@@ -92,3 +96,27 @@ set cutinfo=-ss %cutstart% -to %cutend%
 set cutinfo2=-ss 0 
 goto cutbach2
 exit
+
+
+:show_help
+echo.
+echo [概要]
+echo   各種メディアから音声を抽出/変換して FLAC に出力します。
+echo   1つ以上のファイル、またはフォルダパスを引数に指定して使います。
+echo.
+echo [使い方]
+echo   %~nx0 ^<file_or_folder^> [more files...]
+echo     例) %~nx0 song.wav
+echo     例) %~nx0 video.mp4
+echo     例) %~nx0 "C:\\path\\to\\folder"
+echo.
+echo [出力]
+echo   同階層に「^<元名^> ffmpeg.flac」または「ffmpeg\\^<元名^>.flac」を作成します。
+echo.
+echo [補足]
+echo   ・オプションでLosslessCutを起動し、指定範囲のみを切り出せます。
+echo   ・ffmpeg が PATH に通っている必要があります。
+echo.
+echo 何かキーを押すと閉じます...
+pause
+exit /b

@@ -1,4 +1,8 @@
 @echo off
+rem このバッチのヘルプはファイル末尾にあります（-h / --help または未引数で表示）
+if "%~1"=="" goto :show_help
+if /i "%~1"=="-h" goto :show_help
+if /i "%~1"=="--help" goto :show_help
 chcp 932
 ffprobe -hide_banner %1
 %~d1
@@ -20,6 +24,24 @@ if %errorlevel%==8 goto 8Truck
 exit
 
 :2Truck
+
+:show_help
+echo.
+echo [概要]
+echo   入力メディアの音声トラックを、指定した本数に応じて個別ファイルに分離します（最大8）。
+echo.
+echo [使い方]
+echo   %~nx0 ^<media_file^>
+echo.
+echo [出力]
+echo   同階層の ffmpeg\ フォルダに TrackN という名前で書き出します。
+echo.
+echo [前提]
+echo   ・ffmpeg と ffprobe が PATH に通っていること。
+echo.
+echo 何かキーを押すと閉じます...
+pause
+exit /b
 echo 合計2個のトラックを分離します
 :roop
 %~d1

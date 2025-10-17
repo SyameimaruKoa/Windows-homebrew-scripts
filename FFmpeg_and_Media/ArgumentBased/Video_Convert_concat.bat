@@ -1,4 +1,8 @@
 @echo off
+rem このバッチのヘルプはファイル末尾にあります（-h / --help または未引数で表示）
+if "%~1"=="" goto :show_help
+if /i "%~1"=="-h" goto :show_help
+if /i "%~1"=="--help" goto :show_help
 chcp 932
 setlocal enabledelayedexpansion
 
@@ -115,3 +119,23 @@ echo.
 echo 処理が完了したぞ。
 pause
 endlocal
+
+:show_help
+echo.
+echo [概要]
+echo   複数の動画を連結し、FFMETADATAのチャプターを自動生成して埋め込みます。
+echo.
+echo [使い方]
+echo   %~nx0 ^<video1^> ^<video2^> ^<video3^> ...
+echo   ドラッグ^&ドロップで順序を確認し、必要なら connect.txt / metadata.txt を編集できます。
+echo.
+echo [出力]
+echo   同一フォルダに ^<元名^>_merged_chapters_manual^<拡張子^> を作成。
+echo.
+echo [メモ]
+echo   - ffprobe/ffmpeg が PATH に必要です。
+echo   - 生成するチャプター時間はミリ秒単位。START/END が連続するようにしてください。
+echo.
+echo 何かキーを押すと閉じます...
+pause
+exit /b

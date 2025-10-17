@@ -1,4 +1,8 @@
 @echo off
+rem このバッチのヘルプはファイル末尾にあります（-h / --help または未引数で表示）
+if "%~1"=="" goto :show_help
+if /i "%~1"=="-h" goto :show_help
+if /i "%~1"=="--help" goto :show_help
 setlocal enabledelayedexpansion
 
 :: コンソールの文字コードをShift-JIS（932）に設定
@@ -91,3 +95,19 @@ echo.
 echo 全ての処理が完了しました。
 endlocal
 pause
+
+:show_help
+echo.
+echo [概要]
+echo   NTFS 圧縮/圧縮解除をファイルやフォルダに対して実行します。
+echo.
+echo [使い方]
+echo   %~nx0 ^<file_or_folder1^> ^<file_or_folder2^> ...
+echo   対話で 圧縮/解除、圧縮レベル、強制の有無 を選択します。
+echo.
+echo [注意]
+echo   システムファイルや既に圧縮されたファイルには効果が限定的です。
+echo.
+echo 何かキーを押すと閉じます...
+pause
+exit /b

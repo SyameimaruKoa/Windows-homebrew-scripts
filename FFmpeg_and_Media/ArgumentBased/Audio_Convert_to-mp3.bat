@@ -1,4 +1,8 @@
 @echo off
+rem このバッチのヘルプはファイル末尾にあります（-h / --help または未引数で表示）
+if "%~1"=="" goto :show_help
+if /i "%~1"=="-h" goto :show_help
+if /i "%~1"=="--help" goto :show_help
 if "%comparison%"=="yes" goto roop
 
 chcp 932
@@ -71,3 +75,22 @@ timeout /nobreak 10
 @REM これは昔使ってたラインに通知飛ばす用 ： @REM これは昔使ってたラインに通知飛ばす用 ： call C:\Users\kouki\OneDrive\CUIApplication\notify.bat mp3_end
 pause
 exit
+
+
+:show_help
+echo.
+echo [概要]
+echo   音声を MP3 に変換します。VBR品質(V2/V4/V5/V6)と上限ビットレート(-B)を選択可能。
+echo.
+echo [使い方]
+echo   %~nx0 ^<file_or_folder^> [more files...]
+echo.
+echo [出力]
+echo   同階層に「lame\\^<元名^>.mp3」を作成します。
+echo.
+echo [補足]
+echo   ・ffmpeg と lame が PATH に通っている必要があります。
+echo.
+echo 何かキーを押すと閉じます...
+pause
+exit /b

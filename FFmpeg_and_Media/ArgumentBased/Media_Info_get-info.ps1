@@ -1,4 +1,27 @@
-﻿param(
+﻿#region ヘルプ
+<#
+.SYNOPSIS
+    メディアファイルの情報を表示します（ffprobe/ffmpegを使用）。
+
+.DESCRIPTION
+    指定したメディアファイルごとに、一般情報（hide_banner出力）を表示します。
+    ffprobe が利用可能な場合は、r_frame_rate と avg_frame_rate の詳細、
+    さらに先頭10フレームの表示時間からVFR傾向の目安も併せて表示します。
+
+.PARAMETER filePaths
+    情報を表示したいメディアファイルのパスを1つ以上指定します。
+
+.EXAMPLE
+    PS> .\Media_Info_get-info.ps1 video.mp4 audio.m4a
+    2つのファイルの一般情報と、可能であればフレームレート詳細を表示します。
+
+.NOTES
+    ・ffprobe または ffmpeg が PATH に通っている必要があります。
+    ・ドラッグ＆ドロップでも実行できます。
+#>
+#endregion
+
+param(
     [Parameter(Mandatory=$true, ValueFromRemainingArguments=$true)]
     [string[]]$filePaths
 )

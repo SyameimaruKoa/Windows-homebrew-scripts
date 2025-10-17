@@ -1,5 +1,18 @@
 #!/bin/bash
 
+show_help() {
+    echo "概要: 同ディレクトリ内の PNG を WebP(quality=90) に一括変換し、元PNGを削除します。"
+    echo "使い方: $(basename "$0") [-h|--help]"
+    echo "前提: ImageMagick(convert) がインストール済みであること"
+}
+
+case "$1" in
+    -h|--help)
+        show_help
+        exit 0
+        ;;
+esac
+
 # ImageMagickの`convert`コマンドがあるか確認
 if ! command -v convert &> /dev/null; then
     echo "ImageMagickがインストールされていないのじゃ。sudo apt install imagemagick で入れるのじゃ。"

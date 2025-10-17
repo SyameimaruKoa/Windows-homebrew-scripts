@@ -1,4 +1,8 @@
 @echo off
+rem このバッチのヘルプはファイル末尾にあります（-h / --help または未引数で表示）
+if "%~1"=="" goto :show_help
+if /i "%~1"=="-h" goto :show_help
+if /i "%~1"=="--help" goto :show_help
 chcp 932
 %~d1
 cd "%~dp1"
@@ -29,7 +33,7 @@ del "upconv\%~n1.txt"
 del "upconv\%~n1.png"
 del "ffmpeg\%~n1.wav"
 del "upconv\%~n1 qaac.m4a"
-del %1
+del "%~1"
 ) else (
 echo 何らかのファイルが不足しています。
 pause
@@ -52,7 +56,7 @@ if not %errorlevel%==1 (
 del "upconv\%~n1.txt"
 del "upconv\%~n1.wav"
 del "ffmpeg\%~n1.wav"
-del %1
+del "%~1"
 ) else (
 echo 何らかのファイルが不足しています。
 pause
@@ -78,7 +82,7 @@ del "upconv\%~n1.txt"
 del "upconv\%~n1.png"
 del "ffmpeg\%~n1.wav"
 del "upconv\%~n1.flac"
-del %1
+del "%~1"
 ) else (
 echo 何らかのファイルが不足しています。
 pause
@@ -89,3 +93,22 @@ timeout /nobreak 10
 call C:\Users\kouki\OneDrive\CUIApplication\notify.bat upconv_end
 pause
 exit
+
+:show_help
+echo.
+echo [概要]
+echo   元ファイルからメタデータを抽出し、アップコンバート音源へコピーして出力します。
+echo   FLAC / WAV / AAC を選択可能。ジャケット画像もコピーします。
+echo.
+echo [使い方]
+echo   %~nx0 ^<original_media^>
+echo.
+echo [出力]
+echo   end\ に出力（各モードでファイル名は自動付与）。
+echo.
+echo [前提]
+echo   ・ffmpeg, qaac64, exiftool が PATH に通っていること。
+echo.
+echo 何かキーを押すと閉じます...
+pause
+exit /b

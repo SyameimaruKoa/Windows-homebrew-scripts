@@ -1,4 +1,8 @@
 @echo off
+rem このバッチのヘルプはファイル末尾にあります（-h / --help または未引数で表示）
+if "%~1"=="" goto :show_help
+if /i "%~1"=="-h" goto :show_help
+if /i "%~1"=="--help" goto :show_help
 if "%comparison%"=="yes" goto roop
 
 if not "%file%"=="" goto folderrun
@@ -93,3 +97,23 @@ timeout /nobreak 10
 @REM これは昔使ってたラインに通知飛ばす用 ： @REM これは昔使ってたラインに通知飛ばす用 ： call C:\Users\kouki\OneDrive\CUIApplication\notify.bat m4a_end
 pause
 exit
+
+
+:show_help
+echo.
+echo [概要]
+echo   音声を AAC/ALAC に変換します（qaac64使用）。
+echo   サンプリングレート強制、エンコーダ種別、TVBRなどを選択可能。
+echo.
+echo [使い方]
+echo   %~nx0 ^<file_or_folder^> [more files...]
+echo.
+echo [出力]
+echo   同階層に「qaac\\^<元名^>.m4a」を作成します。
+echo.
+echo [補足]
+echo   ・ffmpeg と qaac64 が PATH に通っている必要があります。
+echo.
+echo 何かキーを押すと閉じます...
+pause
+exit /b

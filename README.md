@@ -3,53 +3,58 @@
 このリポジトリは、日常的なタスクを自動化するためのバッチファイルとPowerShellスクリプトのコレクションです。
 
 ## 使い方
+
 多くのスクリプトは、コマンドプロンプトやPowerShellで引数を指定して実行するか、ファイルを直接ドラッグアンドドロップすることで動作します。
 各スクリプトのファイル名がその機能を表しています (`カテゴリ_アクション-説明.拡張子`)。
 
--   引数が必要なスクリプト（主に`ArgumentBased`フォルダ内）の使い方がわからない場合は、`-h`または`--help`引数を付けて実行すると、ヘルプが表示されます。
--   PowerShellスクリプト（`.ps1`）の場合は、`Get-Help "スクリプトのパス" -Full`で詳細なヘルプを参照できます。
+- 引数が必要なスクリプト（主に`ArgumentBased`フォルダ内）の使い方がわからない場合は、`-h`または`--help`引数を付けて実行すると、ヘルプが表示されます。
+- PowerShellスクリプト（`.ps1`）の場合は、`Get-Help "スクリプトのパス" -Full`で詳細なヘルプを参照できます。
 
 ### PowerShellスクリプトのドラッグアンドドロップ実行について
+
 PowerShellスクリプト（`.ps1`）をドラッグアンドドロップで手軽に実行するために、専用のショートカットを作成すると便利です。
 Windowsのセキュリティ設定により、直接のドラッグアンドドロップが機能しない場合でも、この方法で実行できます。
 
-1.  デスクトップなどの好きな場所で右クリックし、**[新規作成] > [ショートカット]** を選択します。
-2.  「項目の場所を入力してください」という画面で、以下のように入力します。
-    ```
-    powershell.exe -ExecutionPolicy Bypass -File "C:\path\to\your\script.ps1"
-    ```
-    ※ `"C:\path\to\your\script.ps1"` の部分は、実行したいスクリプトの**絶対パス**に書き換えてください。
-3.  「次へ」をクリックし、ショートカットに分かりやすい名前（例：「動画を画像に変換」など）を付け、「完了」をクリックします。
-4.  作成されたショートカットにファイル（動画ファイルなど）をドラッグアンドドロップすると、スクリプトが実行されます。
+1. デスクトップなどの好きな場所で右クリックし、**[新規作成] > [ショートカット]** を選択します。
+2. 「項目の場所を入力してください」という画面で、以下のように入力します。
+
+   ```powershell
+   powershell.exe -ExecutionPolicy Bypass -File "C:\path\to\your\script.ps1"
+   ```
+
+   ※ `"C:\path\to\your\script.ps1"` の部分は、実行したいスクリプトの**絶対パス**に書き換えてください。
+3. 「次へ」をクリックし、ショートカットに分かりやすい名前（例：「動画を画像に変換」など）を付け、「完了」をクリックします。
+4. 作成されたショートカットにファイル（動画ファイルなど）をドラッグアンドドロップすると、スクリプトが実行されます。
 
 ## ファイル一覧と機能
 
 ### System_Utilities
 
-#### `Interactive/`
+#### Interactive (System_Utilities)
 
 - **`Hardware_NVIDIA-Powerlimit.bat`**: NVIDIA GPUの電力制限を設定します。
-- **`OS_Restart-Explorer.bat`**: Windowsエクスプローラーを再起動します。
+- **`エクスプローラー再起動.bat`**: Windowsエクスプローラーを再起動します。
 - **`OS_Set-Network-Profile.bat`**: ネットワーク接続のカテゴリ（パブリック/プライベート）を変更します。
 - **`OS_Enable-gpedit.bat`**: Windows Home Editionでローカルグループポリシーエディターを有効にします。
 - **`File_Open-Temp-Dir.bat`**: 一時フォルダ（TEMP）を開きます。
 - **`File_Open-Default-Temp-Dir.bat`**: デフォルトの一時フォルダを開きます。
 
-#### `ArgumentBased/`
+#### ArgumentBased (System_Utilities)
 
 - **`File_NTFS-Compression.bat`**: ファイルやフォルダのNTFS圧縮/解凍を行います。
-- **`OS_Run-WSL-script.bat`**: WSL上のスクリプトを実行するためのショートカットです。
+- **`OS_Run-WSL-script.bat`**: WSL上のシェルスクリプトを実行します。使い方: `OS_Run-WSL-script.bat <script.sh> [args...]`。
 - **`File_Create-Symlink.bat`**: ファイルやフォルダのシンボリックリンクを作成します。
 - **`File_Replace-Text.bat`**: テキストファイル内の文字列を置換します。
 - **`File_Open-in-order.bat`**: 複数のファイルを指定した順番で開きます。
 - **`File_Distribute-and-Move.bat`**: ファイルをルールに基づいて各フォルダに分配・移動します。
-- **`File_Sort-by-month.bat`**: ファイルを作成月ごとにフォルダ分けします。
+- **`File_Sort-by-month.bat`**: ファイルを更新月(yyyy-MM)ごとにフォルダ分けします（直下のファイルのみ）。
 - **`File_Delete-empty-folders.bat`**: 指定したフォルダ以下の空フォルダをすべて削除します。
 - **`File_Move-to-parent-folder.bat`**: ファイルを一つ上の階層（親フォルダ）に移動します。
+- **`File_Convert-GboardDictionary.ps1`**: GboardとGoogle日本語入力のユーザー辞書ファイル形式を相互に変換します。
 
 ### Mobile_and_SideLoading
 
-#### `Interactive/`
+#### Interactive (Mobile_and_SideLoading)
 
 - **`Sideload_Start-AltServer.bat`**: AltServerを起動し、SideStoreのダウンロード準備をします。
 - **`Device_Rakuten-Mini_boot-TWRP.bat`**: Rakuten MiniをTWRPで起動します。
@@ -58,7 +63,7 @@ Windowsのセキュリティ設定により、直接のドラッグアンドド�
 
 ### Networking
 
-#### `Interactive/`
+#### Interactive (Networking)
 
 - **`Remote_Start-Demucs.ps1`**: リモートサーバー上のDemucsの起動とポートフォワーディングを自動化します。
 - **`Tailscale_Ping-Loop.ps1`**: Tailscaleデバイスに継続的にpingを送信します。
@@ -67,7 +72,7 @@ Windowsのセキュリティ設定により、直接のドラッグアンドド�
 
 ### FFmpeg_and_Media
 
-#### `ArgumentBased/`
+#### ArgumentBased (FFmpeg_and_Media)
 
 このカテゴリのスクリプトは、主にドラッグアンドドロップでの使用を想定しています。
 
@@ -88,7 +93,7 @@ Windowsのセキュリティ設定により、直接のドラッグアンドド�
 - **`Audio_Convert_to-aac.bat`**: AAC形式に変換します。
 - **`Audio_Convert_to-aac-parallel.bat`**: AAC形式に並列変換します。
 - **`Audio_Convert_to-aac-folder-parallel.bat`**: フォルダ内のファイルをAAC形式に並列変換します。
-- **`Audio_Convert_from-flac.bat`**: FLACファイルを変換します。
+- **`Audio_Convert_to-flac.bat`**: 各種メディアからFLACへ変換します。
 - **`Audio_Convert_to-mp3.bat`**: MP3形式に変換します。
 - **`Audio_Convert_to-opus.bat`**: Opus形式に変換します。
 - **`Audio_Convert_to-wav.bat`**: WAV形式に変換します。
@@ -120,9 +125,9 @@ Windowsのセキュリティ設定により、直接のドラッグアンドド�
 - **`Tool_Fix_timebase-framerate.ps1`**: 動画のタイムベースとフレームレートの不整合を修正します。
 - **`Tool_tsMuxeR.bat`**: `tsMuxeR`を使用してMPEG-TSコンテナを操作します。
 - **`Tool_tsMuxeR_subtitle-multi-audio.bat`**: `tsMuxeR`で字幕と多重音声を扱います。
-- **`Tool_upconv_copy-properties.bat`**: 動画のプロパティを別のファイルにコピーします。
+- **`Tool_upconv_copy-properties.bat`**: 音声ファイルのメタデータやジャケット画像を抽出し、アップコンバート後の出力（FLAC/WAV/AAC）へコピーします。
 
-## 使い方
+## ヘルプの見方
 
 各スクリプトは、引数 `-h` または `--help` を付けて実行することで、詳しい使い方（ヘルプ）が表示されます。
 

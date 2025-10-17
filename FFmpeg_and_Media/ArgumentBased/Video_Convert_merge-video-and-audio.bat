@@ -1,4 +1,8 @@
 @echo off
+rem このバッチのヘルプはファイル末尾にあります（-h / --help または未引数で表示）
+if "%~1"=="" goto :show_help
+if /i "%~1"=="-h" goto :show_help
+if /i "%~1"=="--help" goto :show_help
 chcp 932
 echo 動画.%~nx1
 echo 音声.%~nx2
@@ -195,3 +199,22 @@ echo 成功しました。
 ) else echo 失敗しました。
 pause
 exit
+
+:show_help
+echo.
+echo [概要]
+echo   動画と音声を結合、または複数の動画^+音声をマルチトラック化し、各ストリームにタイトルを設定します。
+echo.
+echo [使い方]
+echo   - 単純結合: %~nx0 ^<video1^> ^<audio1^>
+echo   - 2組:      %~nx0 ^<video1^> ^<audio1^> ^<video2^> ^<audio2^>
+echo   - 3組:      %~nx0 ^<v1^> ^<a1^> ^<v2^> ^<a2^> ^<v3^> ^<a3^>
+echo   - 4組:      %~nx0 ^<v1^> ^<a1^> ^<v2^> ^<a2^> ^<v3^> ^<a3^> ^<v4^> ^<a4^>
+echo   対話で拡張子(MKV/MP4)とストリーム名（タイトル）を指定できます。
+echo.
+echo [メモ]
+echo   exiftool があれば、元ファイルからプロパティをコピーできます。
+echo.
+echo 何かキーを押すと閉じます...
+pause
+exit /b
