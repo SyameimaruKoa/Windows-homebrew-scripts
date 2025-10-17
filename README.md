@@ -2,47 +2,125 @@
 
 このリポジトリは、日常的なタスクを自動化するためのバッチファイルとPowerShellスクリプトのコレクションです。
 
+## 使い方
+多くのスクリプトは、コマンドプロンプトやPowerShellで引数を指定して実行するか、ファイルを直接ドラッグアンドドロップすることで動作します。
+各スクリプトのファイル名がその機能を表しています (`カテゴリ_アクション-説明.拡張子`)。
+
+-   引数が必要なスクリプト（主に`ArgumentBased`フォルダ内）の使い方がわからない場合は、`-h`または`--help`引数を付けて実行すると、ヘルプが表示されます。
+-   PowerShellスクリプト（`.ps1`）の場合は、`Get-Help "スクリプトのパス" -Full`で詳細なヘルプを参照できます。
+
+### PowerShellスクリプトのドラッグアンドドロップ実行について
+PowerShellスクリプト（`.ps1`）をドラッグアンドドロップで手軽に実行するために、専用のショートカットを作成すると便利です。
+Windowsのセキュリティ設定により、直接のドラッグアンドドロップが機能しない場合でも、この方法で実行できます。
+
+1.  デスクトップなどの好きな場所で右クリックし、**[新規作成] > [ショートカット]** を選択します。
+2.  「項目の場所を入力してください」という画面で、以下のように入力します。
+    ```
+    powershell.exe -ExecutionPolicy Bypass -File "C:\path\to\your\script.ps1"
+    ```
+    ※ `"C:\path\to\your\script.ps1"` の部分は、実行したいスクリプトの**絶対パス**に書き換えてください。
+3.  「次へ」をクリックし、ショートカットに分かりやすい名前（例：「動画を画像に変換」など）を付け、「完了」をクリックします。
+4.  作成されたショートカットにファイル（動画ファイルなど）をドラッグアンドドロップすると、スクリプトが実行されます。
+
 ## ファイル一覧と機能
 
-### バッチファイル (.bat)
+### System_Utilities
 
-- **`AltStore変数デフォルト起動.bat`**
-  - `AltServer`を起動し、`SideStore`のダウンロード準備をします。管理者権限が必要です。
+#### `Interactive/`
 
-- **`C330_TWRP_boot.bat`**
-  - Rakuten MiniをTWRP（カスタムリカバリ）で起動するためのユーティリティです。デバイスをBootloaderモードで再起動したり、直接TWRPイメージを起動したりするオプションを選択できます。
+- **`Hardware_NVIDIA-Powerlimit.bat`**: NVIDIA GPUの電力制限を設定します。
+- **`OS_Restart-Explorer.bat`**: Windowsエクスプローラーを再起動します。
+- **`OS_Set-Network-Profile.bat`**: ネットワーク接続のカテゴリ（パブリック/プライベート）を変更します。
+- **`OS_Enable-gpedit.bat`**: Windows Home Editionでローカルグループポリシーエディターを有効にします。
+- **`File_Open-Temp-Dir.bat`**: 一時フォルダ（TEMP）を開きます。
+- **`File_Open-Default-Temp-Dir.bat`**: デフォルトの一時フォルダを開きます。
 
-- **`NVIDIA_Powerlimit.bat`**
-  - NVIDIA製GPUの電力制限（Power Limit）を設定します。引数で直接値を指定するか、対話モードで現在の状態を確認しながら設定できます。管理者権限が必要です。
+#### `ArgumentBased/`
 
-- **`scrcpy.bat`**
-  - Androidデバイスの画面をPCにミラーリングするツール `scrcpy` を、対話形式で簡単に利用できるようにしたラッパーです。解像度、ビットレート、画面回転などのオプションを選択して実行できます。
+- **`File_NTFS-Compression.bat`**: ファイルやフォルダのNTFS圧縮/解凍を行います。
+- **`OS_Run-WSL-script.bat`**: WSL上のスクリプトを実行するためのショートカットです。
+- **`File_Create-Symlink.bat`**: ファイルやフォルダのシンボリックリンクを作成します。
+- **`File_Replace-Text.bat`**: テキストファイル内の文字列を置換します。
+- **`File_Open-in-order.bat`**: 複数のファイルを指定した順番で開きます。
+- **`File_Distribute-and-Move.bat`**: ファイルをルールに基づいて各フォルダに分配・移動します。
+- **`File_Sort-by-month.bat`**: ファイルを作成月ごとにフォルダ分けします。
+- **`File_Delete-empty-folders.bat`**: 指定したフォルダ以下の空フォルダをすべて削除します。
+- **`File_Move-to-parent-folder.bat`**: ファイルを一つ上の階層（親フォルダ）に移動します。
 
-- **`SideStoreダウンロード.bat`**
-  - iOSデバイス向けの代替アプリストア `SideStore` の最新版（nightlyビルド）の `.ipa` ファイルをダウンロードします。
+### Mobile_and_SideLoading
 
-- **`エクスプローラー再起動.bat`**
-  - Windowsのエクスプローラー (`explorer.exe`) を再起動します。エクスプローラーがフリーズした際などに使用します。
+#### `Interactive/`
 
-- **`ネットワークセキュリティを変更.bat`**
-  - Windowsのネットワーク接続プロファイルを「プライベート」または「パブリック」に切り替えます。対話形式でインターフェースを選択し、設定を変更します。管理者権限が必要です。
+- **`Sideload_Start-AltServer.bat`**: AltServerを起動し、SideStoreのダウンロード準備をします。
+- **`Device_Rakuten-Mini_boot-TWRP.bat`**: Rakuten MiniをTWRPで起動します。
+- **`Device_scrcpy-wrapper.bat`**: `scrcpy` を対話形式で簡単に利用できます。
+- **`Sideload_Download-SideStore.bat`**: SideStoreの最新版をダウンロードします。
 
-- **`ローカルグループポリシー有効化.bat`**
-  - Windows 10/11 Home Editionなど、標準ではローカルグループポリシーエディター (`gpedit.msc`) が搭載されていないエディションで、この機能を有効化します。管理者権限が必要です。
+### Networking
 
-### PowerShellスクリプト (.ps1)
+#### `Interactive/`
 
-- **`Start-RemoteDemucs.ps1`**
-  - リモートサーバー上でDockerコンテナとして動作する `Demucs` (音楽ソース分離ツール) の起動と、ローカルPCからのアクセス設定（ポートフォワーディング）を自動化します。
+- **`Remote_Start-Demucs.ps1`**: リモートサーバー上のDemucsの起動とポートフォワーディングを自動化します。
+- **`Tailscale_Ping-Loop.ps1`**: Tailscaleデバイスに継続的にpingを送信します。
+- **`Tailscale_Status-Loop.ps1`**: Tailscaleのステータスを定期的に表示します。
+- **`WiFi_Get-Info.ps1`**: 現在のWi-Fi接続情報を定期的に表示します。
 
-- **`tailscale_ping_loop.ps1`**
-  - `Tailscale` ネットワーク上の特定のデバイスに対して、継続的にpingを送信し、接続状態（直接接続、DERP経由など）を色分けして表示します。
+### FFmpeg_and_Media
 
-- **`tailscale_status_loop.ps1`**
-  - `tailscale status` コマンドを定期的に実行し、ネットワーク内のデバイスの状態をリアルタイムで監視します。画面のちらつきを抑える工夫がされています。
+#### `ArgumentBased/`
 
-- **`Wi-Fi Information.ps1`**
-  - 現在接続しているWi-FiのSSID、電波強度、通信速度、チャンネルなどの詳細情報を取得し、定期的に更新表示します。
+このカテゴリのスクリプトは、主にドラッグアンドドロップでの使用を想定しています。
+
+##### 音声抽出 (Audio_Extraction)
+
+- **`Audio_Extraction_2nd-audio.bat`**: 動画ファイルの2番目の音声トラックを抽出します。
+- **`Audio_Extraction_flac.bat`**: FLAC音声トラックを抽出します。
+- **`Audio_Extraction_m4a.bat`**: M4A音声トラックを抽出します。
+- **`Audio_Extraction_mp3.bat`**: MP3音声トラックを抽出します。
+- **`Audio_Extraction_opus.bat`**: Opus音声トラックを抽出します。
+- **`Audio_Extraction_wav.bat`**: WAV音声トラックを抽出します。
+- **`Audio_Extraction_7.1ch-separate.bat`**: 7.1ch音声の各チャンネルを個別のファイルに分離します。
+- **`Audio_Extraction_multi-track.bat`**: 動画から複数の音声トラックを分離します。
+
+##### 音声変換 (Audio_Convert)
+
+- **`Audio_Convert_7.1ch-downmix.bat`**: 7.1ch音声をステレオにダウンミックスします。
+- **`Audio_Convert_to-aac.bat`**: AAC形式に変換します。
+- **`Audio_Convert_to-aac-parallel.bat`**: AAC形式に並列変換します。
+- **`Audio_Convert_to-aac-folder-parallel.bat`**: フォルダ内のファイルをAAC形式に並列変換します。
+- **`Audio_Convert_from-flac.bat`**: FLACファイルを変換します。
+- **`Audio_Convert_to-mp3.bat`**: MP3形式に変換します。
+- **`Audio_Convert_to-opus.bat`**: Opus形式に変換します。
+- **`Audio_Convert_to-wav.bat`**: WAV形式に変換します。
+- **`Audio_Convert_mix.bat`**: 複数の音楽ファイルをミックスします。
+
+##### 動画変換 (Video_Convert)
+
+- **`Video_Convert_to-images.ps1`**: 動画を連番画像に変換します。
+- **`Video_Convert_concat.bat`**: 複数の動画ファイルを結合します。
+- **`Video_Convert_lossless.bat`**: 動画を無劣化で別のコンテナ形式に変換します。
+- **`Video_Convert_from-still-image-and-audio.bat`**: 音楽ファイルと静止画から動画を作成します。
+- **`Video_Convert_merge-video-and-audio.bat`**: 動画ファイルと音声ファイルを結合します。
+
+##### 画像処理 (Image)
+
+- **`Image_Convert_to-webp.bat`**: 画像ファイルをWebP形式に変換します。
+- **`Image_Upscale_waifu2x.bat`**: `waifu2x`を使用して画像をアップスケーリングします。
+- **`Image_Convert_screenshot.sh`**: スクリーンショットの形式を変換します（WSL環境向け）。
+
+##### メディア操作・情報 (Media_Action, Media_Info)
+
+- **`Media_Info_get-info.bat` / `.ps1`**: メディアファイルの情報を表示します。
+- **`Media_Action_play.bat`**: `ffplay`でメディアファイルを再生します。
+- **`Media_Action_play-waveform.bat`**: 音声ファイルの波形を表示しながら再生します。
+- **`Media_Action_copy-metadata.bat`**: 音楽ファイルのメタデータをコピーします。
+
+##### 関連ツール (Tool)
+
+- **`Tool_Fix_timebase-framerate.ps1`**: 動画のタイムベースとフレームレートの不整合を修正します。
+- **`Tool_tsMuxeR.bat`**: `tsMuxeR`を使用してMPEG-TSコンテナを操作します。
+- **`Tool_tsMuxeR_subtitle-multi-audio.bat`**: `tsMuxeR`で字幕と多重音声を扱います。
+- **`Tool_upconv_copy-properties.bat`**: 動画のプロパティを別のファイルにコピーします。
 
 ## 使い方
 
@@ -57,5 +135,5 @@ C:\> script_name.bat --help
 ### PowerShellスクリプトの場合
 
 ```powershell
-PS C:\> .\script_name.ps1 -help
+PS C:\> Get-Help .\script_name.ps1 -Full
 ```
