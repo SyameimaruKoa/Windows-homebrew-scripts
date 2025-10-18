@@ -10,6 +10,11 @@
 
 ヒント: PowerShell のドラッグ&ドロップ実行には `System_Utilities/ArgumentBased/Create-PowerShellShortcut.bat` でショートカットを作成すると便利です（ExecutionPolicy を自動調整して実行）。
 
+## 他のリポジトリにあるバッチ or スプリクト
+
+- [qaacファイル更新](https://gist.github.com/SyameimaruKoa/c9e6cc876d30bebf10232de5d2aab688)
+- [ffmpegで動画を再エンコード](https://gist.github.com/SyameimaruKoa/635aef100c1b3f9f06b6a21c9bc60a17)
+
 ## ファイル一覧と機能（要約）
 
 ### System_Utilities
