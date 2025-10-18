@@ -1,204 +1,171 @@
 @echo off
 rem このバッチのヘルプはファイル末尾にあります（-h / --help または未引数で表示）
+setlocal enabledelayedexpansion
 if "%~1"=="" goto :show_help
 if /i "%~1"=="-h" goto :show_help
 if /i "%~1"=="--help" goto :show_help
-chcp 932
-echo 動画.%~nx1
-echo 音声.%~nx2
-echo 動画.%~nx3
-echo 音声.%~nx4
-echo 動画.%~nx5
-echo 音声.%~nx6
-echo 動画.%~nx7
-echo 音声.%~nx8
+chcp 932 >nul
 
+rem 引数をすべて配列に格納
+set /a arg_count=0
+set /a pair_count=0
+:count_args
+if "%~1"=="" goto :count_done
+set /a arg_count+=1
+set "arg[!arg_count!]=%~1"
+set "arg_name[!arg_count!]=%~nx1"
+shift
+goto :count_args
+
+:count_done
+rem ペア数を計算（偶数個の引数が必要）
+set /a pair_count=arg_count/2
+if !arg_count! LSS 2 (
+    echo エラー: 最低でも動画ファイルと音声ファイルの2つが必要です。
+    pause
+    exit /b 1
+)
+set /a remainder=arg_count%%2
+if !remainder! NEQ 0 (
+    echo エラー: 引数は偶数個（動画+音声のペア）で指定してください。
+    echo 現在の引数数: !arg_count!
+    pause
+    exit /b 1
+)
+
+rem ファイル一覧を表示
+echo.
+echo ============ 入力ファイル一覧 ============
+for /L %%i in (1,2,!arg_count!) do (
+    set /a j=%%i+1
+    set /a pair_num=(%%i+1)/2
+    echo [ペア!pair_num!] 動画: !arg_name[%%i]!
+    echo [ペア!pair_num!] 音声: !arg_name[!j!]!
+    echo.
+)
+echo ==========================================
+echo.
+
+rem 拡張子選択
 choice /m "拡張子をMP4にする場合はNを、MKVにする場合はYを押してください"
-if %errorlevel%==1 set extension=mkv
-if %errorlevel%==2 set extension=mp4
+if !errorlevel!==1 set extension=mkv
+if !errorlevel!==2 set extension=mp4
 
-if "%~3"=="" goto 1combining
-if "%~4"=="" (
-set stream=1half
-goto Streamname
+rem 単純結合の場合（1ペアのみ）
+if !pair_count! EQU 1 goto :simple_combining
+
+rem マルチトラック化：ストリーム名入力
+echo.
+echo ========== ストリーム名の設定 ==========
+for /L %%i in (1,1,!pair_count!) do (
+    echo [ペア%%i] ストリーム名を入力してください:
+    set /P "stream_name[%%i]="
+    if "!stream_name[%%i]!"=="" set "stream_name[%%i]=Track %%i"
 )
-if "%~5"=="" (
-set stream=2
-goto Streamname
+echo ==========================================
+echo.
+
+rem プロパティコピー元の選択
+echo どのファイルからプロパティをコピーしますか？
+echo 0: コピーしない
+for /L %%i in (1,1,!arg_count!) do (
+    echo %%i: !arg_name[%%i]!
 )
-if "%~7"=="" (
-set stream=3
-goto Streamname
+set /P property_choice=番号を入力してください (0-!arg_count!): 
+if "!property_choice!"=="" set property_choice=0
+if !property_choice! EQU 0 (
+    set properties=no
+) else (
+    set "properties=!arg[%property_choice%]!"
 )
-if "%~9"=="" (
-set stream=4
-goto Streamname
+
+rem ffmpegコマンドを動的に構築
+set "ffmpeg_cmd=ffmpeg -hide_banner"
+set "map_cmd="
+set "metadata_cmd="
+
+rem 入力ファイル指定
+for /L %%i in (1,1,!arg_count!) do (
+    set "ffmpeg_cmd=!ffmpeg_cmd! -i "!arg[%%i]!""
 )
-echo 5つ以上のマルチトラック化は対応させてません。
 
-:Streamname
-echo 「1グループ目」変更するストリーム名を入力してください。
-set change1=
-set /P change1=
+rem マップとメタデータを構築
+set /a v_index=0
+set /a a_index=0
+for /L %%i in (1,2,!arg_count!) do (
+    set /a input_v=%%i-1
+    set /a input_a=%%i
+    set /a pair_num=(%%i+1)/2
+    
+    set "map_cmd=!map_cmd! -map !input_v!:v:0"
+    set "map_cmd=!map_cmd! -map !input_a!:a:0"
+    
+    set "metadata_cmd=!metadata_cmd! -metadata:s:v:!v_index! title="!stream_name[%pair_num%]!""
+    set "metadata_cmd=!metadata_cmd! -metadata:s:a:!a_index! title="!stream_name[%pair_num%]!""
+    
+    set /a v_index+=1
+    set /a a_index+=1
+)
 
-echo 「2グループ目」変更するストリーム名を入力してください。
-set change2=
-set /P change2=
-if %stream%==1half goto 1halfcombining
-if %stream%==2 goto 2combining
+rem 出力ファイル名を取得（最初の入力ファイルをベースに）
+for %%A in ("!arg[1]!") do (
+    set "output_dir=%%~dpA"
+    set "output_name=%%~nA"
+)
+set "output_file=!output_dir!!output_name! Multitrack.!extension!"
 
-echo 「3グループ目」変更するストリーム名を入力してください。
-set change3=
-set /P change3=
-if %stream%==3 goto 3combining
+rem ffmpegを実行
+echo.
+echo !pair_count!組の動画をマルチトラック化します...
+echo.
+!ffmpeg_cmd! -c copy !map_cmd! !metadata_cmd! "!output_file!"
 
-echo 「4グループ目」変更するストリーム名を入力してください。
-set change4=
-set /P change4=
-if %stream%==4 goto 4combining
-exit
+rem プロパティのコピー
+if not "!properties!"=="no" (
+    echo.
+    echo プロパティをコピーしています...
+    exiftool -api largefilesupport=1 -tagsfromfile "!properties!" -all:all -overwrite_original "!output_file!"
+)
 
-:1combining
+goto :exit_success
+
+:simple_combining
+rem 単純結合処理（1ペアのみ）
 echo 動画と音声を結合します。
 echo ──────────────────────────────
-echo 動画(1).%~n1
-echo 音声(2).%~n2
-choice /c 012 /n /m どのファイルからプロパティをコピーしますか？(しない場合は0を入力)
-if %errorlevel%==1 set properties=no
-if %errorlevel%==2 set properties=%~n1
-if %errorlevel%==3 set properties=%~n2
-ffmpeg -hide_banner -i %1 -i %2 -c copy -map 0:v:0 -map 1:a:0 "%~dpn1 (combining).%extension%"
-if "%properties%"=="no" (
-goto exit
-) else (
-exiftool -api largefilesupport=1 -tagsfromfile "%properties%" -all:all -overwrite_original "%~dpn1 (combining).%extension%"
-)
-goto exit
+echo 動画: !arg_name[1]!
+echo 音声: !arg_name[2]!
+echo.
+choice /c 012 /n /m "どのファイルからプロパティをコピーしますか？(0:しない 1:動画 2:音声)"
+if !errorlevel!==1 set properties=no
+if !errorlevel!==2 set "properties=!arg[1]!"
+if !errorlevel!==3 set "properties=!arg[2]!"
 
-:1halfcombining
-echo 2つの動画をマルチトラック化します。
-echo ──────────────────────────────
-echo 1.%~n1
-echo 3.%~n3
-choice /c 013 /n /m どのファイルからプロパティをコピーしますか？(しない場合は0を入力)
-if %errorlevel%==1 set properties=no
-if %errorlevel%==2 set properties=%~1
-if %errorlevel%==3 set properties=%~3
-ffmpeg -hide_banner -i %1 -i %2 -i %3 -c copy ^
--map 0:v:0 ^
--map 1:a:0 ^
--map 2:v:0 ^
--metadata:s:v:0 title="%change1%" ^
--metadata:s:v:1 title="%change2%" ^
--metadata:s:a:0 title="%change1%" ^
-"%~dpn1 Multitrack.%extension%"
-if "%properties%"=="no" (
-goto exit
-) else (
-exiftool -api largefilesupport=1 -tagsfromfile "%properties%" -all:all -overwrite_original "%~dpn1 Multitrack.%extension%"
+for %%A in ("!arg[1]!") do (
+    set "output_dir=%%~dpA"
+    set "output_name=%%~nA"
 )
-goto exit
+set "output_file=!output_dir!!output_name! (combining).!extension!"
 
-:2combining
-echo 2つの動画をマルチトラック化します。
-echo ──────────────────────────────
-echo 1.%~n1
-echo 3.%~n3
-choice /c 013 /n /m どのファイルからプロパティをコピーしますか？(しない場合は0を入力)
-if %errorlevel%==1 set properties=no
-if %errorlevel%==2 set properties=%~1
-if %errorlevel%==3 set properties=%~3
-ffmpeg -hide_banner -i %1 -i %2 -i %3 -i %4 -c copy ^
--map 0:v:0 ^
--map 1:a:0 ^
--map 2:v:0 ^
--map 3:a:0 ^
--metadata:s:v:0 title="%change1%" ^
--metadata:s:v:1 title="%change2%" ^
--metadata:s:a:0 title="%change1%" ^
--metadata:s:a:1 title="%change2%" ^
-"%~dpn1 Multitrack.%extension%"
-if "%properties%"=="no" (
-goto exit
-) else (
-exiftool -api largefilesupport=1 -tagsfromfile "%properties%" -all:all -overwrite_original "%~dpn1 Multitrack.%extension%"
-)
-goto exit
+ffmpeg -hide_banner -i "!arg[1]!" -i "!arg[2]!" -c copy -map 0:v:0 -map 1:a:0 "!output_file!"
 
-:3combining
-echo 3つの動画をマルチトラック化します。
-echo ──────────────────────────────
-echo 1.%~n1
-echo 3.%~n3
-echo 5.%~n5
-choice /c 0135 /n /m どのファイルからプロパティをコピーしますか？(しない場合は0を入力)
-if %errorlevel%==1 set properties=no
-if %errorlevel%==2 set properties=%~1
-if %errorlevel%==3 set properties=%~3
-if %errorlevel%==4 set properties=%~5
-ffmpeg -hide_banner -i %1 -i %2 -i %3 -i %4 -i %5 -i %6 -c copy ^
--map 0:v:0 ^
--map 1:a:0 ^
--map 2:v:0 ^
--map 3:a:0 ^
--map 4:v:0 ^
--map 5:a:0 ^
--metadata:s:v:0 title="%change1%" ^
--metadata:s:v:1 title="%change2%" ^
--metadata:s:v:2 title="%change3%" ^
--metadata:s:a:0 title="%change1%" ^
--metadata:s:a:1 title="%change2%" ^
--metadata:s:a:2 title="%change3%" ^
-"%~dpn1 Multitrack.%extension%"
-if "%properties%"=="no" (
-goto exit
-) else (
-exiftool -api largefilesupport=1 -tagsfromfile "%properties%" -all:all -overwrite_original "%~dpn1 Multitrack.%extension%"
+if not "!properties!"=="no" (
+    echo.
+    echo プロパティをコピーしています...
+    exiftool -api largefilesupport=1 -tagsfromfile "!properties!" -all:all -overwrite_original "!output_file!"
 )
-goto exit
 
-:4combining
-echo 4つの動画をマルチトラック化します。
-echo ──────────────────────────────
-echo 1.%~n1
-echo 3.%~n3
-echo 5.%~n5
-echo 7.%~n7
-choice /c 01357 /n /m どのファイルからプロパティをコピーしますか？(しない場合は0を入力)
-if %errorlevel%==1 set properties=no
-if %errorlevel%==2 set properties=%~1
-if %errorlevel%==3 set properties=%~3
-if %errorlevel%==4 set properties=%~5
-if %errorlevel%==5 set properties=%~7
-ffmpeg -hide_banner -i %1 -i %2 -i %3 -i %4 -i %5 -i %6 -i %7 -i %8 -c copy ^
--map 0:v:0 ^
--map 1:a:0 ^
--map 2:v:0 ^
--map 3:a:0 ^
--map 4:v:0 ^
--map 5:a:0 ^
--map 6:v:0 ^
--map 7:a:0 ^
--metadata:s:v:0 title="%change1%" ^
--metadata:s:v:1 title="%change2%" ^
--metadata:s:v:2 title="%change3%" ^
--metadata:s:v:3 title="%change4%" ^
--metadata:s:a:0 title="%change1%" ^
--metadata:s:a:1 title="%change2%" ^
--metadata:s:a:2 title="%change3%" ^
--metadata:s:a:3 title="%change4%" ^
-"%~dpn1 Multitrack.%extension%"
-if "%properties%"=="no" (
-goto exit
+:exit_success
+echo.
+if !errorlevel!==0 (
+    echo ? 成功しました。
+    echo 出力: !output_file!
 ) else (
-exiftool -api largefilesupport=1 -tagsfromfile "%properties%" -all:all -overwrite_original "%~dpn1 Multitrack.%extension%"
+    echo ? 失敗しました。
 )
-:exit
-if %errorlevel%==0 (
-echo 成功しました。
-) else echo 失敗しました。
+echo.
 pause
-exit
+exit /b !errorlevel!
 
 :show_help
 echo.
