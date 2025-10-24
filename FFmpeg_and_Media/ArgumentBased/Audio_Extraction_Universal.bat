@@ -1,15 +1,15 @@
 @echo off
-rem このバッチのヘルプはファイル末尾にあります（-h / --help または未引数で表示）
+rem ���̃o�b�`�̃w���v�̓t�@�C�������ɂ���܂��i-h / --help �܂��͖������ŕ\���j
 setlocal enabledelayedexpansion
 if "%~1"=="" goto :show_help
 if /i "%~1"=="-h" goto :show_help
 if /i "%~1"=="--help" goto :show_help
 chcp 932 >nul
 
-rem ファイルカウンタ初期化
+rem �t�@�C���J�E���^������
 set filecount=0
 
-rem 複数ファイル処理の判定
+rem �����t�@�C�������̔���
 if not "%~2"=="" (
     set "multifile=1"
     cd /d "%~dp1"
@@ -23,28 +23,28 @@ if "%~1"=="" goto :end_process
 set /a filecount+=1
 cls
 echo.
-echo ════════════════════════════════════════════════════════
-echo   音声トラック抽出ツール
-echo ════════════════════════════════════════════════════════
+echo ????????????????????????????????????????????????????????
+echo   �����g���b�N���o�c�[��
+echo ????????????????????????????????????????????????????????
 echo.
-echo 処理中: %filecount%個目のファイル
-echo ファイル: %~nx1
+echo ������: %filecount%�ڂ̃t�@�C��
+echo �t�@�C��: %~nx1
 echo.
 
-rem 音声コーデック情報を取得
+rem �����R�[�f�b�N�����擾
 for /f "tokens=*" %%a in ('ffprobe -v error -select_streams a:0 -show_entries stream^=codec_name -of default^=noprint_wrappers^=1:nokey^=1 "%~1" 2^>nul') do set "codec=%%a"
 
 if not defined codec (
-    echo [エラー] 音声トラックが検出されませんでした: %~nx1
+    echo [�G���[] �����g���b�N�����o����܂���ł���: %~nx1
     echo.
     shift
     goto :process_loop
 )
 
-echo 検出されたコーデック: !codec!
+echo ���o���ꂽ�R�[�f�b�N: !codec!
 echo.
 
-rem コーデックに応じた拡張子を決定
+rem �R�[�f�b�N�ɉ������g���q������
 set "ext="
 if /i "!codec!"=="aac" set "ext=m4a"
 if /i "!codec!"=="mp3" set "ext=mp3"
@@ -67,37 +67,37 @@ if /i "!codec!"=="wavpack" set "ext=wv"
 if /i "!codec!"=="tta" set "ext=tta"
 if /i "!codec!"=="tak" set "ext=tak"
 
-rem 未対応コーデックの場合はデフォルトでmkaを使用
+rem ���Ή��R�[�f�b�N�̏ꍇ�̓f�t�H���g��mka���g�p
 if not defined ext (
-    echo [警告] 未対応のコーデック「!codec!」です。.mka形式で保存します。
+    echo [�x��] ���Ή��̃R�[�f�b�N�u!codec!�v�ł��B.mka�`���ŕۑ����܂��B
     set "ext=mka"
 )
 
-rem 出力パスを決定
+rem �o�̓p�X������
 if "!multifile!"=="1" (
     set "outfile=ffmpeg\%~n1.!ext!"
 ) else (
     set "outfile=%~dpn1 ffmpeg.!ext!"
 )
 
-rem ffmpegで音声抽出
-echo 抽出中...
+rem ffmpeg�ŉ������o
+echo ���o��...
 ffmpeg -hide_banner -loglevel error -stats -i "%~1" -vn -c:a copy "!outfile!" 2>&1
 if errorlevel 1 (
-    echo [エラー] 音声抽出に失敗しました。
+    echo [�G���[] �������o�Ɏ��s���܂����B
     echo.
 ) else (
-    echo 抽出完了: !outfile!
+    echo ���o����: !outfile!
     echo.
     
-    rem メタデータコピー（WAV以外）
+    rem ���^�f�[�^�R�s�[�iWAV�ȊO�j
     if /i not "!ext!"=="wav" (
-        echo メタデータをコピー中...
+        echo ���^�f�[�^���R�s�[��...
         exiftool -api largefilesupport=1 -tagsfromfile "%~1" -all:all -overwrite_original "!outfile!" 2>nul
         if errorlevel 1 (
-            echo [警告] メタデータのコピーに失敗しました（exiftoolが見つかりません）
+            echo [�x��] ���^�f�[�^�̃R�s�[�Ɏ��s���܂����iexiftool��������܂���j
         ) else (
-            echo メタデータコピー完了
+            echo ���^�f�[�^�R�s�[����
         )
         echo.
     )
@@ -108,55 +108,55 @@ goto :process_loop
 
 :end_process
 echo.
-echo ════════════════════════════════════════════════════════
-echo   処理完了: 合計 %filecount% 個のファイルを処理しました
-echo ════════════════════════════════════════════════════════
+echo ????????????????????????????????????????????????????????
+echo   ��������: ���v %filecount% �̃t�@�C�����������܂���
+echo ????????????????????????????????????????????????????????
 echo.
 pause
 exit /b 0
 
 :show_help
 echo.
-echo ════════════════════════════════════════════════════════
-echo   音声トラック抽出ツール（統合版）
-echo ════════════════════════════════════════════════════════
+echo ????????????????????????????????????????????????????????
+echo   �����g���b�N���o�c�[���i�����Łj
+echo ????????????????????????????????????????????????????????
 echo.
-echo [概要]
-echo   メディアファイルから第1音声トラックを無変換で抽出します。
-echo   コーデックを自動検出し、適切なコンテナ/拡張子で保存します。
-echo   メタデータも可能な限りコピーされます（WAVを除く）。
+echo [�T�v]
+echo   ���f�B�A�t�@�C�������1�����g���b�N�𖳕ϊ��Œ��o���܂��B
+echo   �R�[�f�b�N���������o���A�K�؂ȃR���e�i/�g���q�ŕۑ����܂��B
+echo   ���^�f�[�^���\�Ȍ���R�s�[����܂��iWAV�������j�B
 echo.
-echo [使い方]
+echo [�g����]
 echo   %~nx0 ^<file1^> [file2 file3 ...]
 echo.
-echo [対応コーデック]
-echo   ・AAC/ALAC      -^> .m4a
-echo   ・MP3           -^> .mp3
-echo   ・Opus          -^> .opus
-echo   ・Vorbis        -^> .ogg
-echo   ・FLAC          -^> .flac
-echo   ・PCM系         -^> .wav
-echo   ・AC3           -^> .ac3
-echo   ・E-AC3         -^> .eac3
-echo   ・DTS           -^> .dts
-echo   ・TrueHD        -^> .thd
-echo   ・WMA           -^> .wma
-echo   ・その他        -^> .mka
+echo [�Ή��R�[�f�b�N]
+echo   �EAAC/ALAC      -^> .m4a
+echo   �EMP3           -^> .mp3
+echo   �EOpus          -^> .opus
+echo   �EVorbis        -^> .ogg
+echo   �EFLAC          -^> .flac
+echo   �EPCM�n         -^> .wav
+echo   �EAC3           -^> .ac3
+echo   �EE-AC3         -^> .eac3
+echo   �EDTS           -^> .dts
+echo   �ETrueHD        -^> .thd
+echo   �EWMA           -^> .wma
+echo   �E���̑�        -^> .mka
 echo.
-echo [出力先]
-echo   ・単一ファイル: 同階層に「^<元ファイル名^> ffmpeg.^<拡張子^>」
-echo   ・複数ファイル: 同階層の「ffmpeg\」フォルダに「^<元ファイル名^>.^<拡張子^>」
+echo [�o�͐�]
+echo   �E�P��t�@�C��: ���K�w�Ɂu^<���t�@�C����^> ffmpeg.^<�g���q^>�v
+echo   �E�����t�@�C��: ���K�w�́uffmpeg\�v�t�H���_�Ɂu^<���t�@�C����^>.^<�g���q^>�v
 echo.
-echo [必要なツール]
-echo   ・ffmpeg, ffprobe （必須）
-echo   ・exiftool （メタデータコピー用、オプション）
-echo   ※ これらのツールが PATH に通っている必要があります
+echo [�K�v�ȃc�[��]
+echo   �Effmpeg, ffprobe �i�K�{�j
+echo   �Eexiftool �i���^�f�[�^�R�s�[�p�A�I�v�V�����j
+echo   �� �����̃c�[���� PATH �ɒʂ��Ă���K�v������܂�
 echo.
-echo [例]
+echo [��]
 echo   %~nx0 video.mp4
 echo   %~nx0 video1.mkv video2.mp4 audio.flac
 echo.
-echo ════════════════════════════════════════════════════════
+echo ????????????????????????????????????????????????????????
 echo.
 pause
 exit /b 0

@@ -1,5 +1,5 @@
 @echo off
-rem このバッチのヘルプはファイル末尾にあります（-h / --help または未引数で表示）
+rem ���̃o�b�`�̃w���v�̓t�@�C�������ɂ���܂��i-h / --help �܂��͖������ŕ\���j
 if "%~1"=="" goto :show_help
 if /i "%~1"=="-h" goto :show_help
 if /i "%~1"=="--help" goto :show_help
@@ -27,16 +27,16 @@ exit
 
 :show_help
 echo.
-echo [概要]
-echo   指定したファイルまたはフォルダの中身を一階層上(親フォルダ)へ移動します。
+echo [�T�v]
+echo   �w�肵���t�@�C���܂��̓t�H���_�̒��g����K�w��(�e�t�H���_)�ֈړ����܂��B
 echo.
-echo [使い方]
+echo [�g����]
 echo   %~nx0 ^<file_or_folder1^> ^<file_or_folder2^> ...
 echo.
-echo [注意]
-echo   - フォルダ指定時は中身のみを移動し、空になったフォルダは削除します。
-echo   - 同名衝突があると移動できない場合があります。
+echo [����]
+echo   - �t�H���_�w�莞�͒��g�݂̂��ړ����A��ɂȂ����t�H���_�͍폜���܂��B
+echo   - �����Փ˂�����ƈړ��ł��Ȃ��ꍇ������܂��B
 echo.
-echo 何かキーを押すと閉じます...
+echo �����L�[�������ƕ��܂�...
 pause
 exit /b
