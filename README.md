@@ -53,6 +53,7 @@
 
 ### Networking > Interactive
 
+- `Remote_Reconnect-Demucs.ps1`: リモートの Demucs 接続を再接続。
 - `Remote_Start-Demucs.ps1`: リモートで Demucs を起動しトンネル/転送を設定。
 - `Tailscale_Ping-Loop.ps1`: Tailscale デバイスへ継続 ping。
 - `Tailscale_Status-Loop.ps1`: Tailscale ステータスを定期表示。
