@@ -10,7 +10,7 @@
 
 ヒント: PowerShell のドラッグ&ドロップ実行には `System_Utilities/ArgumentBased/Create-PowerShellShortcut.bat` でショートカットを作成すると便利です（ExecutionPolicy を自動調整して実行）。
 
-## 他のリポジトリにあるバッチ or スプリクト
+## 他のリポジトリにあるバッチ or スクリプト
 
 - [qaacファイル更新](https://gist.github.com/SyameimaruKoa/c9e6cc876d30bebf10232de5d2aab688)
 - [ffmpegで動画を再エンコード](https://gist.github.com/SyameimaruKoa/635aef100c1b3f9f06b6a21c9bc60a17)
@@ -33,6 +33,7 @@
 #### ArgumentBased
 
 - `Create-PowerShellShortcut.bat`: .ps1 をドラッグ&ドロップ実行できるショートカットを生成。
+- `Download-LatestChromeDriver.ps1`: ChromeDriver の最新安定版を取得/更新（win64、`-DownloadOnly` で強制ダウンロード）。
 - `File_Convert-GboardDictionary.ps1`: Gboard ↔ Google日本語入力の辞書形式を相互変換。
 - `File_Create-Symlink.bat`: ファイル/フォルダのシンボリックリンク作成。
 - `File_Delete-empty-folders.bat`: 配下の空フォルダを一括削除。

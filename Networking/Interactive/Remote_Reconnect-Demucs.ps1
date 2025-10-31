@@ -1,4 +1,4 @@
-﻿# Remote_Reconnect-Demucs.ps1
+﻿# Remote_Reconnect-Demucs_v2.ps1
 # (Shift-JISまたはUTF-8で保存するのじゃ)
 
 #regionヘルプ
@@ -13,21 +13,22 @@
     2. 起動中のコンテナに対し、`jupyter server list` を実行して、現在の接続用トークンを直接取得する。
     3. 取得したトークンから接続URLを組み立て、クリップボードにコピーする。
     4. '2s' へのSSHポートフォワーディング（指定ポート）を開始し、バックグラウンドで実行する。
-    5. スクリプトはポートフォワーディングを維持したまま、ユーザーのキー入力を待つ。
-    6. 何かキーが押されると、バックグラウンドのSSHポートフォワーディング用プロセスを終了させてから、スクリプトを閉じる。
+    5. ColabノートブックのURLを既定のブラウザで（再度）開く。
+    6. スクリプトはポートフォワーディングを維持したまま、ユーザーのキー入力を待つ。
+    7. 何かキーが押されると、バックグラウンドのSSHポートフォワーディング用プロセスを終了させてから、スクリプトを閉じる。
 
 .PARAMETER help
     このヘルプを表示します。
 
 .EXAMPLE
-    .\Remote_Reconnect-Demucs.ps1
+    .\Remote_Reconnect-Demucs_v2.ps1
     スクリプトを実行すると、自動的に再接続処理が開始される。
     ブラウザでColabの「ローカルランタイムに接続」ダイアログに、コピーされたURLを貼り付けるのじゃ。
 #>
 #endregion
 
 param(
-    [Parameter(Mandatory=$false, HelpMessage="ヘルプを表示します。")]
+    [Parameter(Mandatory = $false, HelpMessage = "ヘルプを表示します。")]
     [switch]$help
 )
 
@@ -46,6 +47,9 @@ $remoteDir = "/home/koa-ubuntu/Colab-docker"
 
 # docker-compose.ymlに定義されているサービス名
 $serviceName = "colab-runtime"
+
+# ブラウザで開きたいColabノートブックのURL
+$colabNotebookUrl = "https://colab.research.google.com/gist/SyameimaruKoa/8b9c42bd3ddccfe8512376e8a43a7633/hybrid-demucs-music-source-separation.ipynb"
 
 # ローカル側とリモート側でフォワーディングするポート
 $port = 9000
@@ -80,7 +84,7 @@ try {
         throw "トークン取得失敗"
     }
 
-    # クリップボードにコピー
+    # クリップボードにコピー (そなたの要望通り、残しておるぞ)
     Set-Clipboard -Value $localUrl
     Write-Host ""
     Write-Host "接続URLをクリップボードにコピーしたぞ！" -ForegroundColor Cyan
@@ -95,9 +99,14 @@ try {
     Write-Host "ポートフォワーディングが有効になったぞ。" -ForegroundColor Green
     Write-Host ""
 
+    # 【変更点】指定されたColabノートブックを再度開く
+    Write-Host "DemucsのColabノートブックをブラウザで開くのう..." -ForegroundColor Yellow
+    Start-Process $colabNotebookUrl
+
+    Write-Host ""
     Write-Host "------------------------------------------------------------------" -ForegroundColor Magenta
     Write-Host "再接続の準備完了じゃ！" -ForegroundColor Magenta
-    Write-Host "ブラウザで「ローカルランタイムに接続」を選び、" -ForegroundColor Magenta
+    Write-Host "新しく開いたタブで「ローカルランタイムに接続」を選び、" -ForegroundColor Magenta
     Write-Host "クリップボードにコピーされたURLを貼り付けて接続するのじゃ。" -ForegroundColor Magenta
     Write-Host ""
     Write-Host "このウィンドウで何かキーを押すと、SSHポートフォワーディングを終了するぞ。" -ForegroundColor Magenta
@@ -120,7 +129,8 @@ finally {
         Write-Host "SSHポートフォワーディング接続を切断する..." -ForegroundColor Yellow
         Stop-Process -Id $sshProcess.Id -Force
         Write-Host "切断完了じゃ。お疲れ様じゃったな。" -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Host ""
         Write-Host "スクリプトを終了するのじゃ。"
     }
