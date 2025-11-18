@@ -91,7 +91,6 @@
 
 #### 画像処理 (Image)
 
-- `Image_Convert_to-webp.bat`: 画像を WebP に変換。
 - `Image_Upscale_waifu2x.bat`: waifu2x でアップスケール。
 - `Image_Convert_screenshot.sh`: スクリーンショット形式の変換（WSL 向け）。
 
