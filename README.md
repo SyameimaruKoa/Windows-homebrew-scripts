@@ -49,6 +49,7 @@
 
 - `Device_Rakuten-Mini_boot-TWRP.bat`: Rakuten Mini を TWRP で起動。
 - `Device_scrcpy-wrapper.bat`: scrcpy の対話ラッパー。
+- `launch_scrcpy_RakutenMini.bat`: Rakuten Mini用にSSH経由でロック解除しつつscrcpyを起動。
 - `Sideload_Download-SideStore.bat`: SideStore の最新版を取得。
 - `Sideload_Start-AltServer.bat`: AltServer 起動と準備。
 
@@ -57,7 +58,7 @@
 - `Remote_Reconnect-Demucs.ps1`: リモートの Demucs 接続を再接続。
 - `Remote_Start-Demucs.ps1`: リモートで Demucs を起動しトンネル/転送を設定。
 - `Tailscale_Ping-Loop.ps1`: Tailscale デバイスへ継続 ping。
-- `Tailscale_Status-Loop.ps1`: Tailscale ステータスを定期表示。
+- `Tailscale_Status-Loop.ps1`: Tailscale ステータスを定期表示（残像除去・整形表示）。
 - `WiFi_Get-Info.ps1`: 現在の Wi-Fi 接続情報を表示。
 
 ### FFmpeg_and_Media > ArgumentBased
@@ -85,7 +86,7 @@
 
 - `Video_Convert_concat.bat`: 複数動画を結合。
 - `Video_Convert_from-still-image-and-audio.bat`: 静止画+音声から動画生成。
-- `Video_Convert_lossless.bat`: 無劣化で別コンテナへ移行。
+- `Video_Convert_lossless.bat`: 無劣化で別コンテナへ移行（session.mpd の自動処理モード対応※Steamバックグラウンド録画変換用）
 - `Video_Convert_merge-video-and-audio.bat`: 動画と音声を結合。
 - `Video_Convert_to-images.ps1`: 動画 → 連番画像に変換。
 
