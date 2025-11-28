@@ -1,37 +1,37 @@
 @echo off
-rem �����R�[�h��Shift-JIS�ŕۑ�����̂��Ⴜ
+rem 文字コードはShift-JISで保存するのじゃぞ
 chcp 932
 
-rem --- �ݒ�G���A ---
-rem SSH�̃z�X�g�� (config�t�@�C���ݒ�ς݂Ȃ�G�C���A�X��OK)
+rem --- 設定エリア ---
+rem SSHのホスト名 (configファイル設定済みならエイリアスでOK)
 set SSH_HOST=rmini
 rem Tailscale IP
 set HOST=rakuten-mini.bass-uaru.ts.net
-rem Android���̃X�N���v�g�p�X
+rem Android側のスクリプトパス
 set REMOTE_SCRIPT=/data/adb/tailscale/unlock.sh
-rem Scrcpy�̃r�b�g���[�g (2M����)
+rem Scrcpyのビットレート (2M推奨)
 set BIT_RATE=1M
 rem ------------------
 
-rem �����w���v�`�F�b�N
+rem 引数ヘルプチェック
 if "%~1"=="-h" goto :help
 if "%~1"=="--help" goto :help
 
-echo [INFO] ���b�N�����X�N���v�g�����s�� (via SSH)...
-rem SSH�o�R��Android���̃X�N���v�g��@��
-rem �p�X���[�h���͂Ȃ��Ń��O�C���ł���悤�A���J���F�ؐݒ�ς݂��O�񂶂�
+echo [INFO] ロック解除スクリプトを実行中 (via SSH)...
+rem SSH経由でAndroid内のスクリプトを叩く
+rem パスワード入力なしでログインできるよう、公開鍵認証設定済みが前提じゃ
 ssh %SSH_HOST% "%REMOTE_SCRIPT%"
 
 if %ERRORLEVEL% neq 0 (
-    echo [ERROR] SSH�ڑ��܂��̓X�N���v�g���s�Ɏ��s�������B
+    echo [ERROR] SSH接続またはスクリプト実行に失敗したぞ。
     pause
     exit /b
 )
 
-echo [INFO] Scrcpy���N����... (��ʂ̓I�t�ɂȂ�܂�)
-rem Scrcpy���N���B�ڑ���IP��Scrcpy�����������A�܂��͈����s�v�̏ꍇ��z��
-rem ����IP�w�肪�K�v�Ȃ� scrcpy -s %SSH_HOST% �ȂǓK�X����������̂���
-scrcpy -s %HOST% --video-bit-rate %BIT_RATE% --max-size 800 -S
+echo [INFO] Scrcpyを起動中... (画面はオフになります)
+rem Scrcpyを起動。接続先IPはScrcpyが自動解決、または引数不要の場合を想定
+rem もしIP指定が必要なら scrcpy -s %SSH_HOST% など適宜書き換えるのじゃ
+scrcpy -s %HOST% --video-bit-rate %BIT_RATE% --max-size 800 -S -w
 goto :eof
 
 :help
@@ -47,4 +47,5 @@ echo.
 echo -----------------------------------------------------
 echo  Wait for user input before closing...
 pause
+
 exit /b
