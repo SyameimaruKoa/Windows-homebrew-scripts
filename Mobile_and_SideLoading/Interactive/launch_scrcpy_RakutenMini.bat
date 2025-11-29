@@ -7,9 +7,9 @@ set SSH_HOST=rmini
 rem Tailscale IP (ADB用)
 set HOST=rakuten-mini.bass-uaru.ts.net:5555
 rem 通常解除用
-set SCRIPT_NORMAL=/sdcard/unlock.sh
+set SCRIPT_NORMAL=/sdcard/Normal-unlock.sh
 rem BFU/非常用
-set SCRIPT_BFU=/data/adb/tailscale/unlock.sh
+set SCRIPT_BFU=/data/adb/tailscale/BFU-unlock.sh
 rem ロック用
 set SCRIPT_LOCK=/sdcard/lock.sh
 
