@@ -17,7 +17,7 @@ adb reboot bootloader
 
 :twrpboot
 echo TWRPを起動するよ
-fastboot boot ../TWRP-3.4.0-1_C330.img
+fastboot boot "C:\Users\kouki\OneDrive\バッチ_バックアップ設定\TWRP-3.4.0-1_C330.img"
 exit
 
 :bootloaderonly

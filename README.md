@@ -1,14 +1,14 @@
 # スクリプト集
 
-このリポジトリは、日常タスクを自動化するためのバッチファイル (.bat) と PowerShell スクリプト (.ps1) のコレクションです。ファイル名は基本的に「カテゴリ_アクション-説明.拡張子」の形式です。
+このリポジトリは、日常タスクを自動化するためのバッチファイル (.bat)、PowerShell (.ps1)、および WSL/Linux 用シェルスクリプト (.sh) のコレクションです。命名は基本的に「カテゴリ_アクション-説明.拡張子」の形式です。
 
 ## 使い方
 
-- 多くのスクリプトは、引数付きで実行するか、ファイルをドラッグアンドドロップして実行できます。
-- 使い方が不明な場合は `-h` または `--help` でヘルプが表示されます（バッチ/PowerShellともに対応）。
+- 多くのスクリプトは「引数付き」または「ファイルのドラッグ&ドロップ」で実行できます。
+- 使い方が不明な場合は `-h` または `--help` でヘルプが表示されます（バッチ/PowerShell/シェル対応）。
 - PowerShell スクリプトは `Get-Help "<スクリプトのパス>" -Full` でも詳細を確認できます。
 
-ヒント: PowerShell のドラッグ&ドロップ実行には `System_Utilities/ArgumentBased/Create-PowerShellShortcut.bat` でショートカットを作成すると便利です（ExecutionPolicy を自動調整して実行）。
+ヒント: PowerShell のドラッグ&ドロップ実行には `System_Utilities/ArgumentBased/Create-PowerShellShortcut.bat` でショートカット作成が便利です（ExecutionPolicy を自動調整して実行）。
 
 ## 他のリポジトリにあるバッチ or スクリプト
 
@@ -53,13 +53,17 @@
 - `Sideload_Download-SideStore.bat`: SideStore の最新版を取得。
 - `Sideload_Start-AltServer.bat`: AltServer 起動と準備。
 
-### Networking > Interactive
+### Networking
 
+#### Interactive
 - `Remote_Reconnect-Demucs.ps1`: リモートの Demucs 接続を再接続。
 - `Remote_Start-Demucs.ps1`: リモートで Demucs を起動しトンネル/転送を設定。
 - `Tailscale_Ping-Loop.ps1`: Tailscale デバイスへ継続 ping。
 - `Tailscale_Status-Loop.ps1`: Tailscale ステータスを定期表示（残像除去・整形表示）。
 - `WiFi_Get-Info.ps1`: 現在の Wi-Fi 接続情報を表示。
+
+#### Automation
+- `Set-NetworkConfig.ps1`: ネットワーク設定の適用/変更（ルートから移設）。
 
 ### FFmpeg_and_Media > ArgumentBased
 
@@ -93,7 +97,10 @@
 #### 画像処理 (Image)
 
 - `Image_Upscale_waifu2x.bat`: waifu2x でアップスケール。
-- `Image_Convert_screenshot.sh`: スクリーンショット形式の変換（WSL 向け）。
+
+#### シェル（WSL/Linux）
+
+- `Shell/Image_Convert_screenshot.sh`: スクリーンショット形式の変換（WSL 向け、シェル用へ移設）。
 
 #### メディア操作・情報 (Media_Action / Media_Info)
 
