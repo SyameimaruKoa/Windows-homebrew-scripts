@@ -113,7 +113,7 @@
 
 #### 関連ツール (Tool)
 
-- `Tool_Compress-with-UPX.bat`: UPX で .exe アプリケーションを圧縮（ドラッグ&ドロップ対応、バックアップ自動作成）。
+- `Tool_Compress-with-UPX.ps1`: UPX で .exe アプリケーションを圧縮（ドラッグ&ドロップ対応、バックアップ自動作成）。
 - `Tool_Fix_timebase-framerate.ps1`: タイムベースとフレームレートの不整合を補正。
 - `Tool_tsMuxeR.bat`: tsMuxeR による M2TS/TS の操作。
 - `Tool_tsMuxeR_subtitle-multi-audio.bat`: tsMuxeR で字幕/多重音声を扱う。
