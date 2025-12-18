@@ -56,6 +56,7 @@
 ### Networking
 
 #### Interactive
+
 - `Remote_Reconnect-Demucs.ps1`: リモートの Demucs 接続を再接続。
 - `Remote_Start-Demucs.ps1`: リモートで Demucs を起動しトンネル/転送を設定。
 - `Tailscale_Ping-Loop.ps1`: Tailscale デバイスへ継続 ping。
@@ -63,6 +64,7 @@
 - `WiFi_Get-Info.ps1`: 現在の Wi-Fi 接続情報を表示。
 
 #### Automation
+
 - `Set-NetworkConfig.ps1`: ネットワーク設定の適用/変更（ルートから移設）。
 
 ### FFmpeg_and_Media > ArgumentBased
@@ -111,6 +113,7 @@
 
 #### 関連ツール (Tool)
 
+- `Tool_Compress-with-UPX.bat`: UPX で .exe アプリケーションを圧縮（ドラッグ&ドロップ対応、バックアップ自動作成）。
 - `Tool_Fix_timebase-framerate.ps1`: タイムベースとフレームレートの不整合を補正。
 - `Tool_tsMuxeR.bat`: tsMuxeR による M2TS/TS の操作。
 - `Tool_tsMuxeR_subtitle-multi-audio.bat`: tsMuxeR で字幕/多重音声を扱う。
