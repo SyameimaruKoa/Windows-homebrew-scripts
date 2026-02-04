@@ -31,7 +31,7 @@
 
 [CmdletBinding()]
 Param(
-    [Parameter(ValueFromPipeline=$true, ValueFromRemainingArguments=$true, Position=0)]
+    [Parameter(ValueFromPipeline = $true, ValueFromRemainingArguments = $true, Position = 0)]
     [string[]]$Path,
 
     [Alias("f")]
@@ -60,7 +60,8 @@ $upxCmd = "upx"
 if (-not (Get-Command "upx" -ErrorAction SilentlyContinue)) {
     if (Test-Path ".\upx.exe") {
         $upxCmd = (Resolve-Path ".\upx.exe").Path
-    } else {
+    }
+    else {
         Write-Error "upx.exe が見つからぬぞ。パスを通すか、同じフォルダに置くのじゃ。"
         Write-Host "`n終了するにはEnterキーを押してくれ..."
         Read-Host
@@ -87,10 +88,13 @@ foreach ($p in $Path) {
             Write-Host "フォルダをスキャン中: $($item.FullName)" -ForegroundColor Yellow
             
             $targetExts = "*.exe", "*.dll", "*.so", "*.dat", "*.bin", "*.sys", "*.com", "*.scr", "*.cpl", "*.ax", "*.ocx"
-            
-            $allFiles += Get-ChildItem -Path $item.FullName -Recurse -Include $targetExts
-        } else {
-            $allFiles += $item
+            # -File スイッチを追加してディレクトリを除外
+            $allFiles += Get-ChildItem -Path $item.FullName -Recurse -Include $targetExts -File
+        }
+        else {
+            if ($item -is [System.IO.FileInfo]) {
+                $allFiles += $item
+            }
         }
     }
 }
@@ -122,10 +126,10 @@ if ($Mode -eq "Ask") {
         Write-Host "現在の設定 (変更するには F か K を入力):" -ForegroundColor Yellow
         
         $fStr = if ($useForce) { "ON (強制圧縮)" } else { "OFF" }
-        $kStr = if ($useKeep)  { "ON (バックアップ作成)" } else { "OFF" }
+        $kStr = if ($useKeep) { "ON (バックアップ作成)" } else { "OFF" }
         
-        Write-Host "   [F] Force : $fStr" -ForegroundColor $(if($useForce){"Red"}else{"Gray"})
-        Write-Host "   [K] Keep  : $kStr" -ForegroundColor $(if($useKeep){"Green"}else{"Gray"})
+        Write-Host "   [F] Force : $fStr" -ForegroundColor $(if ($useForce) { "Red" }else { "Gray" })
+        Write-Host "   [K] Keep  : $kStr" -ForegroundColor $(if ($useKeep) { "Green" }else { "Gray" })
         Write-Host ""
         
         Write-Host "実行モードを選択:" -ForegroundColor Cyan
@@ -137,11 +141,11 @@ if ($Mode -eq "Ask") {
         
         switch ($input.ToLower()) {
             'f' { $useForce = -not $useForce }
-            'k' { $useKeep  = -not $useKeep  }
-            '2' { $executionMode = 'Serial';   $loopMenu = $false }
+            'k' { $useKeep = -not $useKeep }
+            '2' { $executionMode = 'Serial'; $loopMenu = $false }
             '3' { $executionMode = 'Parallel'; $loopMenu = $false }
-            '1' { $executionMode = 'Auto';     $loopMenu = $false }
-            ''  { $executionMode = 'Auto';     $loopMenu = $false }
+            '1' { $executionMode = 'Auto'; $loopMenu = $false }
+            '' { $executionMode = 'Auto'; $loopMenu = $false }
             default { }
         }
     }
@@ -150,7 +154,8 @@ if ($Mode -eq "Ask") {
 if ($executionMode -eq "Auto") {
     if ($allFiles.Count -gt 1) {
         $executionMode = "Parallel"
-    } else {
+    }
+    else {
         $executionMode = "Serial"
     }
 }
@@ -160,7 +165,7 @@ if ($executionMode -eq "Auto") {
 # ---------------------------------------------------------
 
 $commonArgs = @("--best")
-if ($useKeep)  { $commonArgs += "-k" }
+if ($useKeep) { $commonArgs += "-k" }
 if ($useForce) { $commonArgs += "--force" }
 
 # =========================================================
@@ -178,7 +183,8 @@ if ($executionMode -eq "Serial") {
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "`n[成功] 全て完了したようじゃ！" -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Host "`n[注意] 一部または全てのファイルでエラーが出た可能性があるぞ。" -ForegroundColor Yellow
         Write-Host "ログを確認し、失敗したものは個別に設定を変えて試すなどするのじゃ。" -ForegroundColor Gray
     }
@@ -194,13 +200,15 @@ else {
     Add-Type -AssemblyName System.Drawing
 
     # --- GUI構築 ---
+    [System.Windows.Forms.Application]::EnableVisualStyles()
     $form = New-Object System.Windows.Forms.Form
     $form.Text = "UPX 並列圧縮マネージャ - $($allFiles.Count) Files"
     $form.Size = New-Object System.Drawing.Size(900, 500)
     $form.StartPosition = "CenterScreen"
     $form.MinimizeBox = $true
     $form.MaximizeBox = $true
-    $form.TopMost = $true
+    # ★変更: 最前面固定を解除★
+    $form.TopMost = $false
 
     $totalProgress = New-Object System.Windows.Forms.ProgressBar
     $totalProgress.Dock = "Bottom"
@@ -218,6 +226,11 @@ else {
     $grid.MultiSelect = $false
     $grid.ColumnHeadersHeightSizeMode = "AutoSize"
     
+    # ★軽量化対策: ダブルバッファリングを有効化★
+    $gridType = $grid.GetType()
+    $propInfo = $gridType.GetProperty("DoubleBuffered", [System.Reflection.BindingFlags]::Instance -bor [System.Reflection.BindingFlags]::NonPublic)
+    $propInfo.SetValue($grid, $true, $null)
+
     # --- カラム設定 ---
     $colName = $grid.Columns.Add("Name", "ファイル名")
     $grid.Columns[$colName].Width = 200
@@ -226,7 +239,6 @@ else {
     $grid.Columns[$colSize].Width = 80
     $grid.Columns[$colSize].DefaultCellStyle.Alignment = "MiddleRight"
 
-    # 新規カラム: 圧縮率
     $colRatio = $grid.Columns.Add("Ratio", "圧縮率")
     $grid.Columns[$colRatio].Width = 70
     $grid.Columns[$colRatio].DefaultCellStyle.Alignment = "MiddleRight"
@@ -240,24 +252,28 @@ else {
     $form.Controls.Add($grid)
 
     $grid.Add_CellDoubleClick({
-        param($sender, $e)
-        if ($e.RowIndex -ge 0) {
-            $row = $sender.Rows[$e.RowIndex]
-            if ($null -ne $row.Tag) {
-                [System.Windows.Forms.MessageBox]::Show($row.Tag, "詳細ログ: " + $row.Cells[0].Value)
+            param($sender, $e)
+            if ($e.RowIndex -ge 0) {
+                $row = $sender.Rows[$e.RowIndex]
+                if ($null -ne $row.Tag) {
+                    [System.Windows.Forms.MessageBox]::Show($row.Tag, "詳細ログ: " + $row.Cells[0].Value)
+                }
             }
-        }
-    })
+        })
 
+    # 行データ準備
     $rowMap = @{}
     $rowIndex = 0
+    
+    # 大量追加時の描画停止
+    $grid.SuspendLayout()
     foreach ($f in $allFiles) {
         $sizeKB = [math]::Round($f.Length / 1KB, 0)
-        # Ratioカラム(インデックス2)に空文字を入れておく
         $grid.Rows.Add($f.Name, $sizeKB, "", "待機中", "") | Out-Null
         $rowMap[$f.FullName] = $rowIndex
         $rowIndex++
     }
+    $grid.ResumeLayout()
 
     $form.Show()
     $form.Refresh()
@@ -265,12 +281,14 @@ else {
     # --- 処理開始 ---
     $queue = New-Object System.Collections.Generic.Queue[System.IO.FileInfo]
     foreach ($f in $allFiles) {
-        $queue.Enqueue($f)
+        if ($f -is [System.IO.FileInfo]) {
+            $queue.Enqueue($f)
+        }
     }
 
     $runningJobs = @{}
     $finishedCount = 0
-    $totalCount = $allFiles.Count
+    $totalCount = $queue.Count
     
     $jobBlock = {
         param($exePath, $targetFile, $arguments)
@@ -295,7 +313,15 @@ else {
         }
     }
 
+    # ★高応答ループ: Start-Sleep でフリーズさせない工夫★
+    $stopwatch = [System.Diagnostics.Stopwatch]::New()
+
     while ($queue.Count -gt 0 -or $runningJobs.Count -gt 0) {
+        # 更新処理中は描画を止めて高速化
+        $grid.SuspendLayout()
+        $updated = $false
+        $lastUpdatedRowIndex = -1
+
         $ids = @($runningJobs.Keys)
         foreach ($id in $ids) {
             $job = Get-Job -Id $id
@@ -304,14 +330,14 @@ else {
                 Remove-Job -Job $job
                 $runningJobs.Remove($id)
                 $finishedCount++
+                $updated = $true
 
                 $rIdx = $rowMap[$result.File]
+                $lastUpdatedRowIndex = $rIdx
                 $grid.Rows[$rIdx].Tag = $result.Output
 
                 if ($result.ExitCode -eq 0) {
-                    # 成功時: 圧縮率をログから抽出 (正規表現)
                     $ratio = "-"
-                    # 例: 1024 -> 512 50.00% ... のようなパターンを探す
                     if ($result.Output -match "\s+->\s+\d+\s+([\d\.]+%)") {
                         $ratio = $matches[1]
                     }
@@ -322,7 +348,8 @@ else {
                     $grid.Rows[$rIdx].DefaultCellStyle.BackColor = [System.Drawing.Color]::LightGreen
                     
                     Write-Host "[$finishedCount/$totalCount] [成功] ($ratio) $($result.File)" -ForegroundColor Green
-                } else {
+                }
+                else {
                     $errMsg = "不明なエラー (ダブルクリックで詳細)"
                     if ($result.Output -match "Exception|Error|CantPack|upx:") {
                         $errMsg = ($result.Output -split "`n" | Where-Object { $_ -match "Exception|Error|CantPack|upx:" } | Select-Object -Last 1).Trim()
@@ -337,14 +364,15 @@ else {
                     Write-Host "    -> $errMsg" -ForegroundColor DarkGray
                 }
                 
-                if ($rIdx -lt $grid.RowCount) {
-                    $grid.FirstDisplayedScrollingRowIndex = $rIdx
-                }
+                # ループ内でもイベントを処理して固まらないようにする
+                [System.Windows.Forms.Application]::DoEvents()
             }
         }
 
+        # 新規投入
         while ($queue.Count -gt 0 -and $runningJobs.Count -lt $Threads) {
             $nextFile = $queue.Dequeue()
+            $updated = $true
             
             $rIdx = $rowMap[$nextFile.FullName]
             $grid.Rows[$rIdx].Cells[3].Value = "圧縮中..."
@@ -354,18 +382,39 @@ else {
             $runningJobs[$job.Id] = $nextFile.FullName
         }
 
-        $totalProgress.Value = $finishedCount
-        $form.Text = "UPX 並列圧縮 - $finishedCount / $totalCount 完了"
-        [System.Windows.Forms.Application]::DoEvents()
-
-        Start-Sleep -Milliseconds 200
+        $grid.ResumeLayout() # 描画再開
+        
+        # ★修正: 描画再開後にスクロール位置を更新する★
+        if ($updated -and $lastUpdatedRowIndex -ge 0) {
+            $totalProgress.Value = $finishedCount
+            $form.Text = "UPX 並列圧縮 - $finishedCount / $totalCount 完了"
+             
+            # 完了した行があればそこまでスクロール
+            if ($lastUpdatedRowIndex -lt $grid.RowCount) {
+                $grid.FirstDisplayedScrollingRowIndex = $lastUpdatedRowIndex
+            }
+        }
+        
+        # ★ここが肝じゃ: Start-Sleep ではなく、UI応答を維持しながら待つ★
+        # 100ms程度待機するが、その間もウィンドウ操作を受け付ける
+        $stopwatch.Restart()
+        while ($stopwatch.ElapsedMilliseconds -lt 100) {
+            [System.Windows.Forms.Application]::DoEvents()
+            [System.Threading.Thread]::Sleep(10) # CPU負荷を下げるための微小なスリープ
+        }
     }
     
     $totalProgress.Value = $totalCount
     $form.Text = "UPX 並列圧縮 - 完了！"
     Write-Host "`nすべて完了じゃ！" -ForegroundColor Cyan
     
-    Start-Sleep -Seconds 3
+    # 完了後も少し待機（ここもUIフリーズさせない）
+    $stopwatch.Restart()
+    while ($stopwatch.ElapsedMilliseconds -lt 3000) {
+        [System.Windows.Forms.Application]::DoEvents()
+        [System.Threading.Thread]::Sleep(50)
+    }
+    
     $form.Close()
     $form.Dispose()
 }
