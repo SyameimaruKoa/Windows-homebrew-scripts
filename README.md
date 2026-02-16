@@ -19,11 +19,11 @@
 
 ```
 Media/          メディア変換・処理
-  Audio/          音声変換・抽出
-  Video/          動画変換
-  Image/          画像変換・アップスケール
-  Playback/       再生・情報取得
-  Tools/          メディア関連ツール（メタデータ、tsMuxeR 等）
+    Audio/          音声変換・抽出
+    Video/          動画変換
+    Image/          画像変換・アップスケール
+    Playback/       再生・情報取得
+    Tools/          メディア関連ツール（メタデータ、tsMuxeR 等）
 File/           ファイル操作（圧縮、移動、仕分け、変換 等）
 System/         OS・ハードウェア・開発ツール
 Network/        ネットワーク関連（Tailscale、Wi-Fi、リモート接続）
@@ -70,7 +70,7 @@ Mobile/         Android・サイドロード
 | ファイル                                                                        | 説明                               |
 | ------------------------------------------------------------------------------- | ---------------------------------- |
 | [Media_Action_play.bat](Media/Playback/Media_Action_play.bat)                   | ffplay で再生（フィルター入力可）  |
-| [Media_Action_play-waveform.bat](Media/Playback/Media_Action_play-waveform.bat) | 波形表示しながら再生               |
+| [Media_Action_play-waveform.bat](Media/Playback/Media_Action_play-waveform.bat) | 波形表示しながら再生 (WS151使用)   |
 | [Media_Info_get-info.ps1](Media/Playback/Media_Info_get-info.ps1)               | メディア情報の取得（VFR 検知付き） |
 
 ### Media/Tools — メディア関連ツール
