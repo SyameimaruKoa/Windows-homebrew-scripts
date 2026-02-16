@@ -91,14 +91,14 @@ $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
 foreach ($adapter in $adapters) {
     # エラーが出ても止まらぬよう SilentlyContinue を追加じゃ
     $ipIf = Get-NetIPInterface -InterfaceIndex $adapter.InterfaceIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue
-    $profile = Get-NetConnectionProfile -InterfaceIndex $adapter.InterfaceIndex -ErrorAction SilentlyContinue
+    $connProfile = Get-NetConnectionProfile -InterfaceIndex $adapter.InterfaceIndex -ErrorAction SilentlyContinue
     
     $row = $grid.Rows.Add()
     $grid.Rows[$row].Cells["Name"].Value = $adapter.Name
     $grid.Rows[$row].Cells["Index"].Value = $adapter.InterfaceIndex
     # ipIfが取れなかった場合は空欄にする
     $grid.Rows[$row].Cells["Metric"].Value = if ($ipIf) { $ipIf.InterfaceMetric } else { "" }
-    $grid.Rows[$row].Cells["Profile"].Value = if ($profile) { $profile.NetworkCategory.ToString() } else { "" }
+    $grid.Rows[$row].Cells["Profile"].Value = if ($connProfile) { $connProfile.NetworkCategory.ToString() } else { "" }
 }
 
 # 適用ボタン
@@ -126,8 +126,8 @@ $btnApply.Add_Click({
                 
                     # プロファイルの適用
                     if ($cat -and $cat -ne "") {
-                        $current = Get-NetConnectionProfile -InterfaceIndex $idx -ErrorAction SilentlyContinue
-                        if ($current -and $current.NetworkCategory -ne $cat) {
+                        $currentProfile = Get-NetConnectionProfile -InterfaceIndex $idx -ErrorAction SilentlyContinue
+                        if ($currentProfile -and $currentProfile.NetworkCategory -ne $cat) {
                             Set-NetConnectionProfile -InterfaceIndex $idx -NetworkCategory $cat -ErrorAction Stop
                         }
                     }

@@ -137,9 +137,9 @@ if ($Mode -eq "Ask") {
         Write-Host "   [2] Serial   : 全てまとめてUPXに渡す (進捗バーあり・ログ綺麗)"
         Write-Host "   [3] Parallel : CPU全開で並列実行 (爆速・詳細GUIあり)"
         
-        $input = Read-Host "   選択 [1-3, F, K] (EnterでAuto)"
+        $userInput = Read-Host "   選択 [1-3, F, K] (EnterでAuto)"
         
-        switch ($input.ToLower()) {
+        switch ($userInput.ToLower()) {
             'f' { $useForce = -not $useForce }
             'k' { $useKeep = -not $useKeep }
             '2' { $executionMode = 'Serial'; $loopMenu = $false }

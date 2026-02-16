@@ -113,7 +113,7 @@ try {
     Write-Host "------------------------------------------------------------------" -ForegroundColor Magenta
 
     # ユーザーの入力を待つ
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    [void]$Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 
 }
 catch {

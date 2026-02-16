@@ -25,7 +25,7 @@
 #endregion
 
 param(
-    [Parameter(Mandatory=$false, HelpMessage="ヘルプを表示します。")]
+    [Parameter(Mandatory = $false, HelpMessage = "ヘルプを表示します。")]
     [switch]$help
 )
 
@@ -120,7 +120,7 @@ try {
     Write-Host "------------------------------------------------------------------" -ForegroundColor Magenta
 
     # ユーザーの入力を待つ
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    [void]$Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 
 }
 catch {
@@ -136,7 +136,8 @@ finally {
         Write-Host "SSHポートフォワーディング接続を切断する..." -ForegroundColor Yellow
         Stop-Process -Id $sshProcess.Id -Force
         Write-Host "切断完了じゃ。お疲れ様じゃったな。" -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Host ""
         Write-Host "スクリプトを終了するのじゃ。"
     }

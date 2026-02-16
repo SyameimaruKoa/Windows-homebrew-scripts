@@ -22,7 +22,7 @@
 #endregion
 
 param(
-    [Parameter(Mandatory=$true, ValueFromRemainingArguments=$true)]
+    [Parameter(Mandatory = $true, ValueFromRemainingArguments = $true)]
     [string[]]$filePaths
 )
 
@@ -45,7 +45,8 @@ foreach ($filePath in $filePaths) {
         if ($ffprobePath) {
             # ffprobeがあればそちらで表示
             & $ffprobePath.Source -hide_banner -i $filePath
-        } else {
+        }
+        else {
             # なければffmpegで代用
             & $ffmpegPath.Source -hide_banner -i $filePath
         }
@@ -65,15 +66,16 @@ foreach ($filePath in $filePaths) {
             Write-Host "(ここの値がバラバラなら、それはVFRじゃ)"
         }
         else {
-             Write-Host "[ フレームレート詳細 ]" -ForegroundColor DarkGray
-             Write-Host "（ffprobeが見つからんため、このセクションはスキップするのじゃ）"
+            Write-Host "[ フレームレート詳細 ]" -ForegroundColor DarkGray
+            Write-Host "（ffprobeが見つからんため、このセクションはスキップするのじゃ）"
         }
 
         Write-Host "======================================================================`n"
-    } else {
+    }
+    else {
         Write-Host "エラー: `"$($filePath)`" はファイルではない、または見つからんかったぞ。" -ForegroundColor Red
     }
 }
 
 Write-Host "処理が完了したぞ。何かキーを押せば閉じるのじゃ。" -ForegroundColor Green
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+[void]$Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
