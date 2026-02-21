@@ -1,32 +1,32 @@
-<#
+ï»¿<#
 .SYNOPSIS
-    UPX‚ğg‚Á‚ÄÀsƒtƒ@ƒCƒ‹‚ğˆêŠ‡ˆ³k‚·‚é‚Ì‚¶‚áB
+    UPXã‚’ä½¿ã£ã¦å®Ÿè¡Œãƒ•ã‚¡ã‚¤ãƒ«ã‚’ä¸€æ‹¬åœ§ç¸®ã™ã‚‹ã®ã˜ã‚ƒã€‚
 
 .DESCRIPTION
-    w’è‚³‚ê‚½ƒtƒ@ƒCƒ‹A‚Ü‚½‚ÍƒtƒHƒ‹ƒ_“à‚ÌÀsƒtƒ@ƒCƒ‹i.exe, .dll, .so, .dat “™j‚ğUPX‚Åˆ³k‚·‚éƒXƒNƒŠƒvƒg‚¶‚áB
-    ‹N“®‚É‘Î˜bƒ‚[ƒh‚Å“®ì‚ğ‘I‘ğ‚Å‚«‚é‚Ù‚©AKeep(ƒoƒbƒNƒAƒbƒv)‚âForce(‹­§)‚Ìİ’è‚à‚»‚Ìê‚Å•ÏX‰Â”\‚¶‚áB
+    æŒ‡å®šã•ã‚ŒãŸãƒ•ã‚¡ã‚¤ãƒ«ã€ã¾ãŸã¯ãƒ•ã‚©ãƒ«ãƒ€å†…ã®å®Ÿè¡Œãƒ•ã‚¡ã‚¤ãƒ«ï¼ˆ.exe, .dll, .so, .dat ç­‰ï¼‰ã‚’UPXã§åœ§ç¸®ã™ã‚‹ã‚¹ã‚¯ãƒªãƒ—ãƒˆã˜ã‚ƒã€‚
+    èµ·å‹•æ™‚ã«å¯¾è©±ãƒ¢ãƒ¼ãƒ‰ã§å‹•ä½œã‚’é¸æŠã§ãã‚‹ã»ã‹ã€Keep(ãƒãƒƒã‚¯ã‚¢ãƒƒãƒ—)ã‚„Force(å¼·åˆ¶)ã®è¨­å®šã‚‚ãã®å ´ã§å¤‰æ›´å¯èƒ½ã˜ã‚ƒã€‚
 
 .PARAMETER Path
-    ˆ³k‚µ‚½‚¢ƒtƒ@ƒCƒ‹A‚Ü‚½‚ÍƒtƒHƒ‹ƒ_‚ÌƒpƒX‚¶‚áB
-    •¡”w’è‚à‰Â”\‚¶‚á‚µAƒƒCƒ‹ƒhƒJ[ƒhi*.exej‚àg‚¦‚é‚¼B
+    åœ§ç¸®ã—ãŸã„ãƒ•ã‚¡ã‚¤ãƒ«ã€ã¾ãŸã¯ãƒ•ã‚©ãƒ«ãƒ€ã®ãƒ‘ã‚¹ã˜ã‚ƒã€‚
+    è¤‡æ•°æŒ‡å®šã‚‚å¯èƒ½ã˜ã‚ƒã—ã€ãƒ¯ã‚¤ãƒ«ãƒ‰ã‚«ãƒ¼ãƒ‰ï¼ˆ*.exeï¼‰ã‚‚ä½¿ãˆã‚‹ãã€‚
 
 .PARAMETER Force
-    ‰Šúó‘Ô‚Å‹­§ƒ‚[ƒh‚ğ—LŒø‚É‚·‚éƒtƒ‰ƒO‚¶‚áB
-    ‘Î˜bƒ‚[ƒh‚ÅŒã‚©‚ç•ÏX‚·‚é‚±‚Æ‚à‰Â”\‚¶‚áB
+    åˆæœŸçŠ¶æ…‹ã§å¼·åˆ¶ãƒ¢ãƒ¼ãƒ‰ã‚’æœ‰åŠ¹ã«ã™ã‚‹ãƒ•ãƒ©ã‚°ã˜ã‚ƒã€‚
+    å¯¾è©±ãƒ¢ãƒ¼ãƒ‰ã§å¾Œã‹ã‚‰å¤‰æ›´ã™ã‚‹ã“ã¨ã‚‚å¯èƒ½ã˜ã‚ƒã€‚
 
 .PARAMETER Mode
-    ˆ—ƒ‚[ƒh‚ğ‹­§w’è‚·‚éê‡‚Ég‚¤Biw’è‚µ‚È‚¢ê‡‚Í‘Î˜bƒƒjƒ…[‚ªo‚éj
-    Auto     : ©“®”»’èiƒtƒ@ƒCƒ‹”1‚È‚çSerialA•¡”‚È‚çParallelj
-    Serial   : ‘Sƒtƒ@ƒCƒ‹‚ğ‚Ü‚Æ‚ß‚ÄUPX‚É“n‚µ‚Ä‡ŸÀsiƒƒO‚ªŒ©‚â‚·‚¢Ei’»ƒo[‚ ‚èj
-    Parallel : CPUƒRƒA‚ğg‚Á‚Ä•À—ñÀsi”š‘¬EÚ×GUI‚ ‚èEˆ³k—¦•\¦‘Î‰j
+    å‡¦ç†ãƒ¢ãƒ¼ãƒ‰ã‚’å¼·åˆ¶æŒ‡å®šã™ã‚‹å ´åˆã«ä½¿ã†ã€‚ï¼ˆæŒ‡å®šã—ãªã„å ´åˆã¯å¯¾è©±ãƒ¡ãƒ‹ãƒ¥ãƒ¼ãŒå‡ºã‚‹ï¼‰
+    Auto     : è‡ªå‹•åˆ¤å®šï¼ˆãƒ•ã‚¡ã‚¤ãƒ«æ•°1ãªã‚‰Serialã€è¤‡æ•°ãªã‚‰Parallelï¼‰
+    Serial   : å…¨ãƒ•ã‚¡ã‚¤ãƒ«ã‚’ã¾ã¨ã‚ã¦UPXã«æ¸¡ã—ã¦é †æ¬¡å®Ÿè¡Œï¼ˆãƒ­ã‚°ãŒè¦‹ã‚„ã™ã„ãƒ»é€²æ—ãƒãƒ¼ã‚ã‚Šï¼‰
+    Parallel : CPUã‚³ã‚¢ã‚’ä½¿ã£ã¦ä¸¦åˆ—å®Ÿè¡Œï¼ˆçˆ†é€Ÿãƒ»è©³ç´°GUIã‚ã‚Šãƒ»åœ§ç¸®ç‡è¡¨ç¤ºå¯¾å¿œï¼‰
 
 .PARAMETER Threads
-    •À—ñˆ—‚ÌÅ‘å“¯Às”‚¶‚áBƒfƒtƒHƒ‹ƒg‚ÍCPU‚ÌƒƒWƒJƒ‹ƒRƒA”B
-    PC‚ªd‚­‚È‚è‚·‚¬‚éê‡‚ÍŒ¸‚ç‚·‚Æ—Ç‚¢B
+    ä¸¦åˆ—å‡¦ç†æ™‚ã®æœ€å¤§åŒæ™‚å®Ÿè¡Œæ•°ã˜ã‚ƒã€‚ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã¯CPUã®ãƒ­ã‚¸ã‚«ãƒ«ã‚³ã‚¢æ•°ã€‚
+    PCãŒé‡ããªã‚Šã™ãã‚‹å ´åˆã¯æ¸›ã‚‰ã™ã¨è‰¯ã„ã€‚
 
 .EXAMPLE
     .\Compress-Upx.ps1 "C:\MyGame\game.exe"
-    -> ƒƒjƒ…[‚ª•\¦‚³‚êAFƒL[‚âKƒL[‚Åİ’è‚ğ•ÏX‚µ‚Ä‚©‚çÀs‚Å‚«‚éB
+    -> ãƒ¡ãƒ‹ãƒ¥ãƒ¼ãŒè¡¨ç¤ºã•ã‚Œã€Fã‚­ãƒ¼ã‚„Kã‚­ãƒ¼ã§è¨­å®šã‚’å¤‰æ›´ã—ã¦ã‹ã‚‰å®Ÿè¡Œã§ãã‚‹ã€‚
 #>
 
 [CmdletBinding()]
@@ -46,49 +46,49 @@ Param(
     [switch]$Help
 )
 
-#region ƒwƒ‹ƒv•\¦ƒƒWƒbƒN
+#region ãƒ˜ãƒ«ãƒ—è¡¨ç¤ºãƒ­ã‚¸ãƒƒã‚¯
 if ($Help -or $null -eq $Path -or $Path.Count -eq 0) {
     Get-Help $MyInvocation.MyCommand.Path -Detailed
-    Write-Host "`nŠm”F‚µ‚½‚çEnterƒL[‚ğ‰Ÿ‚µ‚Ä•Â‚¶‚Ä‚­‚ê..." -ForegroundColor Gray
+    Write-Host "`nç¢ºèªã—ãŸã‚‰Enterã‚­ãƒ¼ã‚’æŠ¼ã—ã¦é–‰ã˜ã¦ãã‚Œ..." -ForegroundColor Gray
     Read-Host
     exit
 }
 #endregion
 
-# UPX‚ÌŠm”F
+# UPXã®ç¢ºèª
 $upxCmd = "upx"
 if (-not (Get-Command "upx" -ErrorAction SilentlyContinue)) {
     if (Test-Path ".\upx.exe") {
         $upxCmd = (Resolve-Path ".\upx.exe").Path
     }
     else {
-        Write-Error "upx.exe ‚ªŒ©‚Â‚©‚ç‚Ê‚¼BƒpƒX‚ğ’Ê‚·‚©A“¯‚¶ƒtƒHƒ‹ƒ_‚É’u‚­‚Ì‚¶‚áB"
-        Write-Host "`nI—¹‚·‚é‚É‚ÍEnterƒL[‚ğ‰Ÿ‚µ‚Ä‚­‚ê..."
+        Write-Error "upx.exe ãŒè¦‹ã¤ã‹ã‚‰ã¬ãã€‚ãƒ‘ã‚¹ã‚’é€šã™ã‹ã€åŒã˜ãƒ•ã‚©ãƒ«ãƒ€ã«ç½®ãã®ã˜ã‚ƒã€‚"
+        Write-Host "`nçµ‚äº†ã™ã‚‹ã«ã¯Enterã‚­ãƒ¼ã‚’æŠ¼ã—ã¦ãã‚Œ..."
         Read-Host
         exit 1
     }
 }
 
-Write-Host "ˆ—‚ğŠJn‚·‚é‚¼..." -ForegroundColor Cyan
+Write-Host "å‡¦ç†ã‚’é–‹å§‹ã™ã‚‹ã..." -ForegroundColor Cyan
 
 # ---------------------------------------------------------
-# ƒtƒ@ƒCƒ‹ƒŠƒXƒg‚ÌûW
+# ãƒ•ã‚¡ã‚¤ãƒ«ãƒªã‚¹ãƒˆã®åé›†
 # ---------------------------------------------------------
 $allFiles = @()
 foreach ($p in $Path) {
     $resolvedPaths = Resolve-Path $p -ErrorAction SilentlyContinue
     if (-not $resolvedPaths) {
-        Write-Warning "w’è‚³‚ê‚½ƒpƒX‚ªŒ©‚Â‚©‚ç‚ÊF $p"
+        Write-Warning "æŒ‡å®šã•ã‚ŒãŸãƒ‘ã‚¹ãŒè¦‹ã¤ã‹ã‚‰ã¬ï¼š $p"
         continue
     }
 
     foreach ($rPath in $resolvedPaths) {
         $item = Get-Item -LiteralPath $rPath.Path
         if ($item -is [System.IO.DirectoryInfo]) {
-            Write-Host "ƒtƒHƒ‹ƒ_‚ğƒXƒLƒƒƒ“’†: $($item.FullName)" -ForegroundColor Yellow
+            Write-Host "ãƒ•ã‚©ãƒ«ãƒ€ã‚’ã‚¹ã‚­ãƒ£ãƒ³ä¸­: $($item.FullName)" -ForegroundColor Yellow
             
             $targetExts = "*.exe", "*.dll", "*.so", "*.dat", "*.bin", "*.sys", "*.com", "*.scr", "*.cpl", "*.ax", "*.ocx"
-            # -File ƒXƒCƒbƒ`‚ğ’Ç‰Á‚µ‚ÄƒfƒBƒŒƒNƒgƒŠ‚ğœŠO
+            # -File ã‚¹ã‚¤ãƒƒãƒã‚’è¿½åŠ ã—ã¦ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã‚’é™¤å¤–
             $allFiles += Get-ChildItem -Path $item.FullName -Recurse -Include $targetExts -File
         }
         else {
@@ -99,45 +99,45 @@ foreach ($p in $Path) {
     }
 }
 
-# d•¡”rœ
+# é‡è¤‡æ’é™¤
 $allFiles = $allFiles | Select-Object -Unique
 
 if ($allFiles.Count -eq 0) {
-    Write-Warning "ˆ—‚·‚×‚«ƒtƒ@ƒCƒ‹‚ªŒ©‚Â‚©‚ç‚ñ‚©‚Á‚½B"
+    Write-Warning "å‡¦ç†ã™ã¹ããƒ•ã‚¡ã‚¤ãƒ«ãŒè¦‹ã¤ã‹ã‚‰ã‚“ã‹ã£ãŸã€‚"
     exit
 }
 
 # ---------------------------------------------------------
-# İ’èEƒ‚[ƒhŒˆ’èi‘Î˜b‚Ü‚½‚Íˆø”j
+# è¨­å®šãƒ»ãƒ¢ãƒ¼ãƒ‰æ±ºå®šï¼ˆå¯¾è©±ã¾ãŸã¯å¼•æ•°ï¼‰
 # ---------------------------------------------------------
 $executionMode = $Mode
 
-# ‰Šúİ’è
+# åˆæœŸè¨­å®š
 $useForce = $Force.IsPresent
 $useKeep = $true
 
-# ˆø”‚Åw’è‚³‚ê‚Ä‚¢‚È‚¢(Ask)ê‡‚ÍAƒ†[ƒU[‚É•·‚­
+# å¼•æ•°ã§æŒ‡å®šã•ã‚Œã¦ã„ãªã„(Ask)å ´åˆã¯ã€ãƒ¦ãƒ¼ã‚¶ãƒ¼ã«èã
 if ($Mode -eq "Ask") {
     $loopMenu = $true
     while ($loopMenu) {
         Write-Host "`n----------------------------------------" -ForegroundColor DarkGray
-        Write-Host "‘ÎÛƒtƒ@ƒCƒ‹”: $($allFiles.Count) ŒÂ" -ForegroundColor Green
+        Write-Host "å¯¾è±¡ãƒ•ã‚¡ã‚¤ãƒ«æ•°: $($allFiles.Count) å€‹" -ForegroundColor Green
         
-        Write-Host "Œ»İ‚Ìİ’è (•ÏX‚·‚é‚É‚Í F ‚© K ‚ğ“ü—Í):" -ForegroundColor Yellow
+        Write-Host "ç¾åœ¨ã®è¨­å®š (å¤‰æ›´ã™ã‚‹ã«ã¯ F ã‹ K ã‚’å…¥åŠ›):" -ForegroundColor Yellow
         
-        $fStr = if ($useForce) { "ON (‹­§ˆ³k)" } else { "OFF" }
-        $kStr = if ($useKeep) { "ON (ƒoƒbƒNƒAƒbƒvì¬)" } else { "OFF" }
+        $fStr = if ($useForce) { "ON (å¼·åˆ¶åœ§ç¸®)" } else { "OFF" }
+        $kStr = if ($useKeep) { "ON (ãƒãƒƒã‚¯ã‚¢ãƒƒãƒ—ä½œæˆ)" } else { "OFF" }
         
         Write-Host "   [F] Force : $fStr" -ForegroundColor $(if ($useForce) { "Red" }else { "Gray" })
         Write-Host "   [K] Keep  : $kStr" -ForegroundColor $(if ($useKeep) { "Green" }else { "Gray" })
         Write-Host ""
         
-        Write-Host "Àsƒ‚[ƒh‚ğ‘I‘ğ:" -ForegroundColor Cyan
-        Write-Host "   [1] Auto     : 1ŒÂ‚È‚ç’ÊíA•¡”‚È‚ç•À—ñ (ƒfƒtƒHƒ‹ƒg)"
-        Write-Host "   [2] Serial   : ‘S‚Ä‚Ü‚Æ‚ß‚ÄUPX‚É“n‚· (i’»ƒo[‚ ‚èEƒƒOãY—í)"
-        Write-Host "   [3] Parallel : CPU‘SŠJ‚Å•À—ñÀs (”š‘¬EÚ×GUI‚ ‚è)"
+        Write-Host "å®Ÿè¡Œãƒ¢ãƒ¼ãƒ‰ã‚’é¸æŠ:" -ForegroundColor Cyan
+        Write-Host "   [1] Auto     : 1å€‹ãªã‚‰é€šå¸¸ã€è¤‡æ•°ãªã‚‰ä¸¦åˆ— (ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ)"
+        Write-Host "   [2] Serial   : å…¨ã¦ã¾ã¨ã‚ã¦UPXã«æ¸¡ã™ (é€²æ—ãƒãƒ¼ã‚ã‚Šãƒ»ãƒ­ã‚°ç¶ºéº—)"
+        Write-Host "   [3] Parallel : CPUå…¨é–‹ã§ä¸¦åˆ—å®Ÿè¡Œ (çˆ†é€Ÿãƒ»è©³ç´°GUIã‚ã‚Š)"
         
-        $userInput = Read-Host "   ‘I‘ğ [1-3, F, K] (Enter‚ÅAuto)"
+        $userInput = Read-Host "   é¸æŠ [1-3, F, K] (Enterã§Auto)"
         
         switch ($userInput.ToLower()) {
             'f' { $useForce = -not $useForce }
@@ -161,7 +161,7 @@ if ($executionMode -eq "Auto") {
 }
 
 # ---------------------------------------------------------
-# ÀsƒuƒƒbƒN
+# å®Ÿè¡Œãƒ–ãƒ­ãƒƒã‚¯
 # ---------------------------------------------------------
 
 $commonArgs = @("--best")
@@ -169,45 +169,45 @@ if ($useKeep) { $commonArgs += "-k" }
 if ($useForce) { $commonArgs += "--force" }
 
 # =========================================================
-# Serialƒ‚[ƒhiˆêŠ‡“n‚µj
+# Serialãƒ¢ãƒ¼ãƒ‰ï¼ˆä¸€æ‹¬æ¸¡ã—ï¼‰
 # =========================================================
 if ($executionMode -eq "Serial") {
-    Write-Host "`n[Serialƒ‚[ƒh] $($allFiles.Count) ŒÂ‚Ìƒtƒ@ƒCƒ‹‚ğ‚Ü‚Æ‚ß‚ÄUPX‚É“n‚·‚¼..." -ForegroundColor Cyan
-    Write-Host "¦UPX‚Ìi’»ƒo[‚ª•\¦‚³‚ê‚é‚Í‚¸‚¶‚áB" -ForegroundColor Gray
+    Write-Host "`n[Serialãƒ¢ãƒ¼ãƒ‰] $($allFiles.Count) å€‹ã®ãƒ•ã‚¡ã‚¤ãƒ«ã‚’ã¾ã¨ã‚ã¦UPXã«æ¸¡ã™ã..." -ForegroundColor Cyan
+    Write-Host "â€»UPXã®é€²æ—ãƒãƒ¼ãŒè¡¨ç¤ºã•ã‚Œã‚‹ã¯ãšã˜ã‚ƒã€‚" -ForegroundColor Gray
 
     $runArgs = $commonArgs + $allFiles.FullName
 
-    Write-Host "   [Exec] $upxCmd (ƒtƒ@ƒCƒ‹ƒŠƒXƒg...)" -ForegroundColor DarkGray
+    Write-Host "   [Exec] $upxCmd (ãƒ•ã‚¡ã‚¤ãƒ«ãƒªã‚¹ãƒˆ...)" -ForegroundColor DarkGray
     
     & $upxCmd $runArgs
     
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "`n[¬Œ÷] ‘S‚ÄŠ®—¹‚µ‚½‚æ‚¤‚¶‚áI" -ForegroundColor Green
+        Write-Host "`n[æˆåŠŸ] å…¨ã¦å®Œäº†ã—ãŸã‚ˆã†ã˜ã‚ƒï¼" -ForegroundColor Green
     }
     else {
-        Write-Host "`n[’ˆÓ] ˆê•”‚Ü‚½‚Í‘S‚Ä‚Ìƒtƒ@ƒCƒ‹‚ÅƒGƒ‰[‚ªo‚½‰Â”\«‚ª‚ ‚é‚¼B" -ForegroundColor Yellow
-        Write-Host "ƒƒO‚ğŠm”F‚µA¸”s‚µ‚½‚à‚Ì‚ÍŒÂ•Ê‚Éİ’è‚ğ•Ï‚¦‚Ä‚·‚È‚Ç‚·‚é‚Ì‚¶‚áB" -ForegroundColor Gray
+        Write-Host "`n[æ³¨æ„] ä¸€éƒ¨ã¾ãŸã¯å…¨ã¦ã®ãƒ•ã‚¡ã‚¤ãƒ«ã§ã‚¨ãƒ©ãƒ¼ãŒå‡ºãŸå¯èƒ½æ€§ãŒã‚ã‚‹ãã€‚" -ForegroundColor Yellow
+        Write-Host "ãƒ­ã‚°ã‚’ç¢ºèªã—ã€å¤±æ•—ã—ãŸã‚‚ã®ã¯å€‹åˆ¥ã«è¨­å®šã‚’å¤‰ãˆã¦è©¦ã™ãªã©ã™ã‚‹ã®ã˜ã‚ƒã€‚" -ForegroundColor Gray
     }
 }
 # =========================================================
-# Parallelƒ‚[ƒhi•À—ñƒWƒ‡ƒu + Ú×GUIƒŠƒXƒgj
+# Parallelãƒ¢ãƒ¼ãƒ‰ï¼ˆä¸¦åˆ—ã‚¸ãƒ§ãƒ– + è©³ç´°GUIãƒªã‚¹ãƒˆï¼‰
 # =========================================================
 else {
-    Write-Host "`n[Parallelƒ‚[ƒh] ‘ÎÛ: $($allFiles.Count) ŒÂ / ƒXƒŒƒbƒh”: $Threads" -ForegroundColor Cyan
-    Write-Host "¦Ú×ƒEƒBƒ“ƒhƒE‚ğo‚·‚¼Bs‚ğƒ_ƒuƒ‹ƒNƒŠƒbƒN‚·‚é‚ÆÚ×ƒƒO‚ªŒ©‚ê‚é‚¼B" -ForegroundColor Gray
+    Write-Host "`n[Parallelãƒ¢ãƒ¼ãƒ‰] å¯¾è±¡: $($allFiles.Count) å€‹ / ã‚¹ãƒ¬ãƒƒãƒ‰æ•°: $Threads" -ForegroundColor Cyan
+    Write-Host "â€»è©³ç´°ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚’å‡ºã™ãã€‚è¡Œã‚’ãƒ€ãƒ–ãƒ«ã‚¯ãƒªãƒƒã‚¯ã™ã‚‹ã¨è©³ç´°ãƒ­ã‚°ãŒè¦‹ã‚Œã‚‹ãã€‚" -ForegroundColor Gray
     
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
 
-    # --- GUI\’z ---
+    # --- GUIæ§‹ç¯‰ ---
     [System.Windows.Forms.Application]::EnableVisualStyles()
     $form = New-Object System.Windows.Forms.Form
-    $form.Text = "UPX •À—ñˆ³kƒ}ƒl[ƒWƒƒ - $($allFiles.Count) Files"
+    $form.Text = "UPX ä¸¦åˆ—åœ§ç¸®ãƒãƒãƒ¼ã‚¸ãƒ£ - $($allFiles.Count) Files"
     $form.Size = New-Object System.Drawing.Size(900, 500)
     $form.StartPosition = "CenterScreen"
     $form.MinimizeBox = $true
     $form.MaximizeBox = $true
-    # š•ÏX: Å‘O–ÊŒÅ’è‚ğ‰ğœš
+    # â˜…å¤‰æ›´: æœ€å‰é¢å›ºå®šã‚’è§£é™¤â˜…
     $form.TopMost = $false
 
     $totalProgress = New-Object System.Windows.Forms.ProgressBar
@@ -226,27 +226,27 @@ else {
     $grid.MultiSelect = $false
     $grid.ColumnHeadersHeightSizeMode = "AutoSize"
     
-    # šŒy—Ê‰»‘Îô: ƒ_ƒuƒ‹ƒoƒbƒtƒ@ƒŠƒ“ƒO‚ğ—LŒø‰»š
+    # â˜…è»½é‡åŒ–å¯¾ç­–: ãƒ€ãƒ–ãƒ«ãƒãƒƒãƒ•ã‚¡ãƒªãƒ³ã‚°ã‚’æœ‰åŠ¹åŒ–â˜…
     $gridType = $grid.GetType()
     $propInfo = $gridType.GetProperty("DoubleBuffered", [System.Reflection.BindingFlags]::Instance -bor [System.Reflection.BindingFlags]::NonPublic)
     $propInfo.SetValue($grid, $true, $null)
 
-    # --- ƒJƒ‰ƒ€İ’è ---
-    $colName = $grid.Columns.Add("Name", "ƒtƒ@ƒCƒ‹–¼")
+    # --- ã‚«ãƒ©ãƒ è¨­å®š ---
+    $colName = $grid.Columns.Add("Name", "ãƒ•ã‚¡ã‚¤ãƒ«å")
     $grid.Columns[$colName].Width = 200
     
-    $colSize = $grid.Columns.Add("Size", "ƒTƒCƒY (KB)")
+    $colSize = $grid.Columns.Add("Size", "ã‚µã‚¤ã‚º (KB)")
     $grid.Columns[$colSize].Width = 80
     $grid.Columns[$colSize].DefaultCellStyle.Alignment = "MiddleRight"
 
-    $colRatio = $grid.Columns.Add("Ratio", "ˆ³k—¦")
+    $colRatio = $grid.Columns.Add("Ratio", "åœ§ç¸®ç‡")
     $grid.Columns[$colRatio].Width = 70
     $grid.Columns[$colRatio].DefaultCellStyle.Alignment = "MiddleRight"
 
-    $colStatus = $grid.Columns.Add("Status", "ó‘Ô")
+    $colStatus = $grid.Columns.Add("Status", "çŠ¶æ…‹")
     $grid.Columns[$colStatus].Width = 80
 
-    $colMessage = $grid.Columns.Add("Message", "ƒƒbƒZ[ƒW")
+    $colMessage = $grid.Columns.Add("Message", "ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸")
     $grid.Columns[$colMessage].AutoSizeMode = "Fill"
 
     $form.Controls.Add($grid)
@@ -256,20 +256,20 @@ else {
             if ($e.RowIndex -ge 0) {
                 $row = $sender.Rows[$e.RowIndex]
                 if ($null -ne $row.Tag) {
-                    [System.Windows.Forms.MessageBox]::Show($row.Tag, "Ú×ƒƒO: " + $row.Cells[0].Value)
+                    [System.Windows.Forms.MessageBox]::Show($row.Tag, "è©³ç´°ãƒ­ã‚°: " + $row.Cells[0].Value)
                 }
             }
         })
 
-    # sƒf[ƒ^€”õ
+    # è¡Œãƒ‡ãƒ¼ã‚¿æº–å‚™
     $rowMap = @{}
     $rowIndex = 0
     
-    # ‘å—Ê’Ç‰Á‚Ì•`‰æ’â~
+    # å¤§é‡è¿½åŠ æ™‚ã®æç”»åœæ­¢
     $grid.SuspendLayout()
     foreach ($f in $allFiles) {
         $sizeKB = [math]::Round($f.Length / 1KB, 0)
-        $grid.Rows.Add($f.Name, $sizeKB, "", "‘Ò‹@’†", "") | Out-Null
+        $grid.Rows.Add($f.Name, $sizeKB, "", "å¾…æ©Ÿä¸­", "") | Out-Null
         $rowMap[$f.FullName] = $rowIndex
         $rowIndex++
     }
@@ -278,7 +278,7 @@ else {
     $form.Show()
     $form.Refresh()
 
-    # --- ˆ—ŠJn ---
+    # --- å‡¦ç†é–‹å§‹ ---
     $queue = New-Object System.Collections.Generic.Queue[System.IO.FileInfo]
     foreach ($f in $allFiles) {
         if ($f -is [System.IO.FileInfo]) {
@@ -313,11 +313,11 @@ else {
         }
     }
 
-    # š‚‰“šƒ‹[ƒv: Start-Sleep ‚ÅƒtƒŠ[ƒY‚³‚¹‚È‚¢H•vš
+    # â˜…é«˜å¿œç­”ãƒ«ãƒ¼ãƒ—: Start-Sleep ã§ãƒ•ãƒªãƒ¼ã‚ºã•ã›ãªã„å·¥å¤«â˜…
     $stopwatch = [System.Diagnostics.Stopwatch]::New()
 
     while ($queue.Count -gt 0 -or $runningJobs.Count -gt 0) {
-        # XVˆ—’†‚Í•`‰æ‚ğ~‚ß‚Ä‚‘¬‰»
+        # æ›´æ–°å‡¦ç†ä¸­ã¯æç”»ã‚’æ­¢ã‚ã¦é«˜é€ŸåŒ–
         $grid.SuspendLayout()
         $updated = $false
         $lastUpdatedRowIndex = -1
@@ -343,72 +343,72 @@ else {
                     }
 
                     $grid.Rows[$rIdx].Cells[2].Value = $ratio
-                    $grid.Rows[$rIdx].Cells[3].Value = "Š®—¹"
-                    $grid.Rows[$rIdx].Cells[4].Value = "¬Œ÷"
+                    $grid.Rows[$rIdx].Cells[3].Value = "å®Œäº†"
+                    $grid.Rows[$rIdx].Cells[4].Value = "æˆåŠŸ"
                     $grid.Rows[$rIdx].DefaultCellStyle.BackColor = [System.Drawing.Color]::LightGreen
                     
-                    Write-Host "[$finishedCount/$totalCount] [¬Œ÷] ($ratio) $($result.File)" -ForegroundColor Green
+                    Write-Host "[$finishedCount/$totalCount] [æˆåŠŸ] ($ratio) $($result.File)" -ForegroundColor Green
                 }
                 else {
-                    $errMsg = "•s–¾‚ÈƒGƒ‰[ (ƒ_ƒuƒ‹ƒNƒŠƒbƒN‚ÅÚ×)"
+                    $errMsg = "ä¸æ˜ãªã‚¨ãƒ©ãƒ¼ (ãƒ€ãƒ–ãƒ«ã‚¯ãƒªãƒƒã‚¯ã§è©³ç´°)"
                     if ($result.Output -match "Exception|Error|CantPack|upx:") {
                         $errMsg = ($result.Output -split "`n" | Where-Object { $_ -match "Exception|Error|CantPack|upx:" } | Select-Object -Last 1).Trim()
                     }
                     
                     $grid.Rows[$rIdx].Cells[2].Value = "-"
-                    $grid.Rows[$rIdx].Cells[3].Value = "¸”s"
+                    $grid.Rows[$rIdx].Cells[3].Value = "å¤±æ•—"
                     $grid.Rows[$rIdx].Cells[4].Value = $errMsg
                     $grid.Rows[$rIdx].DefaultCellStyle.BackColor = [System.Drawing.Color]::LightPink
                     
-                    Write-Host "[$finishedCount/$totalCount] [¸”s] $($result.File)" -ForegroundColor Red
+                    Write-Host "[$finishedCount/$totalCount] [å¤±æ•—] $($result.File)" -ForegroundColor Red
                     Write-Host "    -> $errMsg" -ForegroundColor DarkGray
                 }
                 
-                # ƒ‹[ƒv“à‚Å‚àƒCƒxƒ“ƒg‚ğˆ—‚µ‚ÄŒÅ‚Ü‚ç‚È‚¢‚æ‚¤‚É‚·‚é
+                # ãƒ«ãƒ¼ãƒ—å†…ã§ã‚‚ã‚¤ãƒ™ãƒ³ãƒˆã‚’å‡¦ç†ã—ã¦å›ºã¾ã‚‰ãªã„ã‚ˆã†ã«ã™ã‚‹
                 [System.Windows.Forms.Application]::DoEvents()
             }
         }
 
-        # V‹K“Š“ü
+        # æ–°è¦æŠ•å…¥
         while ($queue.Count -gt 0 -and $runningJobs.Count -lt $Threads) {
             $nextFile = $queue.Dequeue()
             $updated = $true
             
             $rIdx = $rowMap[$nextFile.FullName]
-            $grid.Rows[$rIdx].Cells[3].Value = "ˆ³k’†..."
+            $grid.Rows[$rIdx].Cells[3].Value = "åœ§ç¸®ä¸­..."
             $grid.Rows[$rIdx].DefaultCellStyle.BackColor = [System.Drawing.Color]::LightYellow
 
             $job = Start-Job -ScriptBlock $jobBlock -ArgumentList $upxCmd, $nextFile.FullName, $commonArgs
             $runningJobs[$job.Id] = $nextFile.FullName
         }
 
-        $grid.ResumeLayout() # •`‰æÄŠJ
+        $grid.ResumeLayout() # æç”»å†é–‹
         
-        # šC³: •`‰æÄŠJŒã‚ÉƒXƒNƒ[ƒ‹ˆÊ’u‚ğXV‚·‚éš
+        # â˜…ä¿®æ­£: æç”»å†é–‹å¾Œã«ã‚¹ã‚¯ãƒ­ãƒ¼ãƒ«ä½ç½®ã‚’æ›´æ–°ã™ã‚‹â˜…
         if ($updated -and $lastUpdatedRowIndex -ge 0) {
             $totalProgress.Value = $finishedCount
-            $form.Text = "UPX •À—ñˆ³k - $finishedCount / $totalCount Š®—¹"
+            $form.Text = "UPX ä¸¦åˆ—åœ§ç¸® - $finishedCount / $totalCount å®Œäº†"
              
-            # Š®—¹‚µ‚½s‚ª‚ ‚ê‚Î‚»‚±‚Ü‚ÅƒXƒNƒ[ƒ‹
+            # å®Œäº†ã—ãŸè¡ŒãŒã‚ã‚Œã°ãã“ã¾ã§ã‚¹ã‚¯ãƒ­ãƒ¼ãƒ«
             if ($lastUpdatedRowIndex -lt $grid.RowCount) {
                 $grid.FirstDisplayedScrollingRowIndex = $lastUpdatedRowIndex
             }
         }
         
-        # š‚±‚±‚ªŠÌ‚¶‚á: Start-Sleep ‚Å‚Í‚È‚­AUI‰“š‚ğˆÛ‚µ‚È‚ª‚ç‘Ò‚Âš
-        # 100ms’ö“x‘Ò‹@‚·‚é‚ªA‚»‚ÌŠÔ‚àƒEƒBƒ“ƒhƒE‘€ì‚ğó‚¯•t‚¯‚é
+        # â˜…ã“ã“ãŒè‚ã˜ã‚ƒ: Start-Sleep ã§ã¯ãªãã€UIå¿œç­”ã‚’ç¶­æŒã—ãªãŒã‚‰å¾…ã¤â˜…
+        # 100msç¨‹åº¦å¾…æ©Ÿã™ã‚‹ãŒã€ãã®é–“ã‚‚ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦æ“ä½œã‚’å—ã‘ä»˜ã‘ã‚‹
         $stopwatch.Restart()
         while ($stopwatch.ElapsedMilliseconds -lt 100) {
             [System.Windows.Forms.Application]::DoEvents()
-            [System.Threading.Thread]::Sleep(10) # CPU•‰‰×‚ğ‰º‚°‚é‚½‚ß‚Ì”÷¬‚ÈƒXƒŠ[ƒv
+            [System.Threading.Thread]::Sleep(10) # CPUè² è·ã‚’ä¸‹ã’ã‚‹ãŸã‚ã®å¾®å°ãªã‚¹ãƒªãƒ¼ãƒ—
         }
     }
     
     $totalProgress.Value = $totalCount
-    $form.Text = "UPX •À—ñˆ³k - Š®—¹I"
-    Write-Host "`n‚·‚×‚ÄŠ®—¹‚¶‚áI" -ForegroundColor Cyan
+    $form.Text = "UPX ä¸¦åˆ—åœ§ç¸® - å®Œäº†ï¼"
+    Write-Host "`nã™ã¹ã¦å®Œäº†ã˜ã‚ƒï¼" -ForegroundColor Cyan
     
-    # Š®—¹Œã‚à­‚µ‘Ò‹@i‚±‚±‚àUIƒtƒŠ[ƒY‚³‚¹‚È‚¢j
+    # å®Œäº†å¾Œã‚‚å°‘ã—å¾…æ©Ÿï¼ˆã“ã“ã‚‚UIãƒ•ãƒªãƒ¼ã‚ºã•ã›ãªã„ï¼‰
     $stopwatch.Restart()
     while ($stopwatch.ElapsedMilliseconds -lt 3000) {
         [System.Windows.Forms.Application]::DoEvents()
@@ -419,5 +419,5 @@ else {
     $form.Dispose()
 }
 
-Write-Host "I—¹‚·‚é‚É‚ÍEnterƒL[‚ğ‰Ÿ‚µ‚Ä‚­‚¾‚³‚ê..." -ForegroundColor Gray
+Write-Host "çµ‚äº†ã™ã‚‹ã«ã¯Enterã‚­ãƒ¼ã‚’æŠ¼ã—ã¦ãã ã•ã‚Œ..." -ForegroundColor Gray
 Read-Host

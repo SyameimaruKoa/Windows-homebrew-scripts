@@ -1,31 +1,31 @@
-#regionƒwƒ‹ƒv
+ï»¿#regionãƒ˜ãƒ«ãƒ—
 <#
 .SYNOPSIS
-    Œ»İ‚ÌWi-FiÚ‘±î•ñ‚ğ’èŠú“I‚É•\¦‚µ‚Ü‚·B
+    ç¾åœ¨ã®Wi-Fiæ¥ç¶šæƒ…å ±ã‚’å®šæœŸçš„ã«è¡¨ç¤ºã—ã¾ã™ã€‚
 
 .DESCRIPTION
-    netshƒRƒ}ƒ“ƒh‚ğg—p‚µ‚ÄAŒ»İÚ‘±‚µ‚Ä‚¢‚éWi-Fi‚Ìî•ñ‚ğæ“¾‚µA1•b‚²‚Æ‚É‰æ–Ê‚ğXV‚µ‚Ä•\¦‚µ‘±‚¯‚Ü‚·B
-    •\¦‚³‚ê‚éî•ñ‚ÍˆÈ‰º‚Ì’Ê‚è‚Å‚·B
-    - ƒfƒoƒCƒX–¼
+    netshã‚³ãƒãƒ³ãƒ‰ã‚’ä½¿ç”¨ã—ã¦ã€ç¾åœ¨æ¥ç¶šã—ã¦ã„ã‚‹Wi-Fiã®æƒ…å ±ã‚’å–å¾—ã—ã€1ç§’ã”ã¨ã«ç”»é¢ã‚’æ›´æ–°ã—ã¦è¡¨ç¤ºã—ç¶šã‘ã¾ã™ã€‚
+    è¡¨ç¤ºã•ã‚Œã‚‹æƒ…å ±ã¯ä»¥ä¸‹ã®é€šã‚Šã§ã™ã€‚
+    - ãƒ‡ãƒã‚¤ã‚¹å
     - SSID
-    - IEEE 802.11‹KŠi
-    - ü”g”‘Ñ (Band)
-    - ƒ`ƒƒƒ“ƒlƒ‹
-    - óM‘¬“x (Mbps)
-    - ‘—M‘¬“x (Mbps)
-    - “d”g‹­“x (ƒVƒOƒiƒ‹)
+    - IEEE 802.11è¦æ ¼
+    - å‘¨æ³¢æ•°å¸¯ (Band)
+    - ãƒãƒ£ãƒ³ãƒãƒ«
+    - å—ä¿¡é€Ÿåº¦ (Mbps)
+    - é€ä¿¡é€Ÿåº¦ (Mbps)
+    - é›»æ³¢å¼·åº¦ (ã‚·ã‚°ãƒŠãƒ«)
 
 .PARAMETER help
-    ‚±‚Ìƒwƒ‹ƒv‚ğ•\¦‚µ‚Ü‚·B
+    ã“ã®ãƒ˜ãƒ«ãƒ—ã‚’è¡¨ç¤ºã—ã¾ã™ã€‚
 
 .EXAMPLE
     .\Wi-Fi Information.ps1
-    ƒXƒNƒŠƒvƒg‚ğÀs‚·‚é‚ÆAWi-Fiî•ñ‚Ì•\¦‚ªŠJn‚³‚ê‚Ü‚·B
+    ã‚¹ã‚¯ãƒªãƒ—ãƒˆã‚’å®Ÿè¡Œã™ã‚‹ã¨ã€Wi-Fiæƒ…å ±ã®è¡¨ç¤ºãŒé–‹å§‹ã•ã‚Œã¾ã™ã€‚
 #>
 #endregion
 
 param(
-    [Parameter(Mandatory=$false, HelpMessage="ƒwƒ‹ƒv‚ğ•\¦‚µ‚Ü‚·B")]
+    [Parameter(Mandatory = $false, HelpMessage = "ãƒ˜ãƒ«ãƒ—ã‚’è¡¨ç¤ºã—ã¾ã™ã€‚")]
     [switch]$help
 )
 
@@ -34,19 +34,19 @@ if ($help) {
     exit
 }
 
-# WiFiî•ñ‚ğæ“¾‚·‚éŠÖ”
+# WiFiæƒ…å ±ã‚’å–å¾—ã™ã‚‹é–¢æ•°
 function Get-WiFiInfo {
     $wifiInfo = netsh wlan show interfaces
-    # ‰½”Ô–Ú‚ÌƒCƒ“ƒ^[ƒtƒFƒCƒX‚ğg‚¤‚©‚ğw’è(0‚©‚ç)
+    # ä½•ç•ªç›®ã®ã‚¤ãƒ³ã‚¿ãƒ¼ãƒ•ã‚§ã‚¤ã‚¹ã‚’ä½¿ã†ã‹ã‚’æŒ‡å®š(0ã‹ã‚‰)
     $InterfaceIndex = 0
     $ssidPattern = "^\s*SSID\s*:\s*(.+)$"
-    $devicePattern = "^\s*à–¾\s*:\s*(.+)$"
-    $IEEE802_11Pattern ="^\s*–³ü‚Ìí—Ş\s*:\s*(.+)$"
-    $bandPattern = "^\s*ƒoƒ“ƒh\s*:\s*(.+)$"
-    $channelPattern = "^\s*ƒ`ƒƒƒlƒ‹\s*:\s*(.+)$"
-    $downlinkPattern = "^\s*óM‘¬“x\ \(Mbps\)\s*:\s*(.+)$"
-    $uplinkPattern = "^\s*‘—M‘¬“x\ \(Mbps\)\s*:\s*(.+)$"
-    $signalPattern = "^\s*ƒVƒOƒiƒ‹\s*:\s*(.+)$"
+    $devicePattern = "^\s*èª¬æ˜\s*:\s*(.+)$"
+    $IEEE802_11Pattern = "^\s*ç„¡ç·šã®ç¨®é¡\s*:\s*(.+)$"
+    $bandPattern = "^\s*ãƒãƒ³ãƒ‰\s*:\s*(.+)$"
+    $channelPattern = "^\s*ãƒãƒ£ãƒãƒ«\s*:\s*(.+)$"
+    $downlinkPattern = "^\s*å—ä¿¡é€Ÿåº¦\ \(Mbps\)\s*:\s*(.+)$"
+    $uplinkPattern = "^\s*é€ä¿¡é€Ÿåº¦\ \(Mbps\)\s*:\s*(.+)$"
+    $signalPattern = "^\s*ã‚·ã‚°ãƒŠãƒ«\s*:\s*(.+)$"
 
     $matches_device = $wifiInfo -match $devicePattern
     $matches_ssid = $wifiInfo -match $ssidPattern
@@ -58,67 +58,75 @@ function Get-WiFiInfo {
     $matches_signal = $wifiInfo -match $signalPattern
 
     if ($matches_device) {
-            $device = $matches_device[$InterfaceIndex].Trim()
-            Write-Output "$device"
-        } else {
-            Write-Output "ƒfƒoƒCƒXî•ñ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½B"
+        $device = $matches_device[$InterfaceIndex].Trim()
+        Write-Output "$device"
+    }
+    else {
+        Write-Output "ãƒ‡ãƒã‚¤ã‚¹æƒ…å ±ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã§ã—ãŸã€‚"
     }
 
     if ($matches_ssid) {
-            $ssid = $matches_ssid[$InterfaceIndex].Trim()
-            Write-Output "$ssid"
-        } else {
-            Write-Output "SSIDî•ñ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½B"
+        $ssid = $matches_ssid[$InterfaceIndex].Trim()
+        Write-Output "$ssid"
+    }
+    else {
+        Write-Output "SSIDæƒ…å ±ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã§ã—ãŸã€‚"
     }
 
     if ($matches_IEEE802_11) {
-            $IEEE802_11 = $matches_IEEE802_11[$InterfaceIndex].Trim()
-            Write-Output "$IEEE802_11"
-        } else {
-            Write-Output "IEEE802_11î•ñ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½B"
+        $IEEE802_11 = $matches_IEEE802_11[$InterfaceIndex].Trim()
+        Write-Output "$IEEE802_11"
+    }
+    else {
+        Write-Output "IEEE802_11æƒ…å ±ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã§ã—ãŸã€‚"
     }
 
     if ($matches_band) {
-            $band = $matches_band[$InterfaceIndex].Trim()
-            Write-Output "$band"
-        } else {
-            Write-Output "ƒoƒ“ƒhî•ñ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½B"
+        $band = $matches_band[$InterfaceIndex].Trim()
+        Write-Output "$band"
+    }
+    else {
+        Write-Output "ãƒãƒ³ãƒ‰æƒ…å ±ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã§ã—ãŸã€‚"
     }
 
     if ($matches_channel) {
-            $channel = $matches_channel[$InterfaceIndex].Trim()
-            Write-Output "$channel"
-        } else {
-            Write-Output "ƒ`ƒƒƒlƒ‹î•ñ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½B"
+        $channel = $matches_channel[$InterfaceIndex].Trim()
+        Write-Output "$channel"
+    }
+    else {
+        Write-Output "ãƒãƒ£ãƒãƒ«æƒ…å ±ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã§ã—ãŸã€‚"
     }
 
     if ($matches_downlink) {
-            $downlink = $matches_downlink[$InterfaceIndex].Trim()
-            Write-Output "$downlink"
-        } else {
-            Write-Output "óM‘¬“xî•ñ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½B"
+        $downlink = $matches_downlink[$InterfaceIndex].Trim()
+        Write-Output "$downlink"
+    }
+    else {
+        Write-Output "å—ä¿¡é€Ÿåº¦æƒ…å ±ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã§ã—ãŸã€‚"
     }
 
     if ($matches_uplink) {
-            $uplink = $matches_uplink[$InterfaceIndex].Trim()
-            Write-Output "$uplink"
-        } else {
-            Write-Output "‘—M‘¬“xî•ñ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½B"
+        $uplink = $matches_uplink[$InterfaceIndex].Trim()
+        Write-Output "$uplink"
+    }
+    else {
+        Write-Output "é€ä¿¡é€Ÿåº¦æƒ…å ±ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã§ã—ãŸã€‚"
     }
 
     if ($matches_signal) {
-            $signal = $matches_signal[$InterfaceIndex].Trim()
-            Write-Output "$signal"
-        } else {
-            Write-Output "ƒVƒOƒiƒ‹î•ñ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ‚Å‚µ‚½B"
+        $signal = $matches_signal[$InterfaceIndex].Trim()
+        Write-Output "$signal"
+    }
+    else {
+        Write-Output "ã‚·ã‚°ãƒŠãƒ«æƒ…å ±ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã§ã—ãŸã€‚"
     }
 }
 
 
 
-# ’èŠú“I‚ÉWiFiî•ñ‚ğ•\¦‚·‚éƒ‹[ƒv
+# å®šæœŸçš„ã«WiFiæƒ…å ±ã‚’è¡¨ç¤ºã™ã‚‹ãƒ«ãƒ¼ãƒ—
 while ($true) {
     Clear-Host
     Get-WiFiInfo
-    Start-Sleep -Seconds 1  # 1•b‚²‚Æ‚ÉXV
+    Start-Sleep -Seconds 1  # 1ç§’ã”ã¨ã«æ›´æ–°
 }
