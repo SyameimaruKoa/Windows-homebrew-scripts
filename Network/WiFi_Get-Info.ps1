@@ -25,8 +25,10 @@
 #endregion
 
 param(
-    [Parameter(Mandatory=$false, HelpMessage="ヘルプを表示します。")]
-    [switch]$help
+    [Parameter(Mandatory = $false, HelpMessage = "ヘルプを表示します。")]
+    [switch]$help,
+    [Parameter(Mandatory = $false, HelpMessage = "1回だけ情報を表示して終了します。")]
+    [switch]$once
 )
 
 if ($help) {
@@ -36,85 +38,62 @@ if ($help) {
 
 # WiFi情報を取得する関数
 function Get-WiFiInfo {
-    $wifiInfo = netsh wlan show interfaces
-    # 何番目のインターフェイスを使うかを指定(0から)
-    $InterfaceIndex = 0
-    $ssidPattern = "^\s*SSID\s*:\s*(.+)$"
-    $devicePattern = "^\s*説明\s*:\s*(.+)$"
-    $IEEE802_11Pattern ="^\s*無線の種類\s*:\s*(.+)$"
-    $bandPattern = "^\s*バンド\s*:\s*(.+)$"
-    $channelPattern = "^\s*チャネル\s*:\s*(.+)$"
-    $downlinkPattern = "^\s*受信速度\ \(Mbps\)\s*:\s*(.+)$"
-    $uplinkPattern = "^\s*送信速度\ \(Mbps\)\s*:\s*(.+)$"
-    $signalPattern = "^\s*シグナル\s*:\s*(.+)$"
+    # netsh の出力は OEM コードページ依存で文字化けしやすいため、
+    # UTF-8 (英語) に切り替えてから取得する。
+    chcp 65001 >$null
+    $raw = netsh wlan show interfaces
+    $wifiInfo = $raw -split "`r?`n"
 
-    $matches_device = $wifiInfo -match $devicePattern
-    $matches_ssid = $wifiInfo -match $ssidPattern
-    $matches_IEEE802_11 = $wifiInfo -match $IEEE802_11Pattern
-    $matches_band = $wifiInfo -match $bandPattern
-    $matches_channel = $wifiInfo -match $channelPattern
-    $matches_downlink = $wifiInfo -match $downlinkPattern
-    $matches_uplink = $wifiInfo -match $uplinkPattern
-    $matches_signal = $wifiInfo -match $signalPattern
+    # パース用変数
+    $device = $null; $ssid = $null; $radio = $null
+    $band = $null; $channel = $null; $downlink = $null
+    $uplink = $null; $signal = $null
 
-    if ($matches_device) {
-            $device = $matches_device[$InterfaceIndex].Trim()
-            Write-Output "$device"
-        } else {
-            Write-Output "デバイス情報が見つかりませんでした。"
+    foreach ($line in $wifiInfo) {
+        if ($line -match '^[ \t]*(?:Description|説明|Name)[ \t]*:[ \t]*(.+)$') {
+            $device = $matches[1].Trim()
+        }
+        elseif ($line -match '^[ \t]*SSID[ \t]*:[ \t]*(.+)$') {
+            $ssid = $matches[1].Trim()
+        }
+        elseif ($line -match '^[ \t]*(?:Radio type|無線の種類)[ \t]*:[ \t]*(.+)$') {
+            $radio = $matches[1].Trim()
+        }
+        elseif ($line -match '^[ \t]*(?:Band|バンド)[ \t]*:[ \t]*(.+)$') {
+            $band = $matches[1].Trim()
+        }
+        elseif ($line -match '^[ \t]*Channel[ \t]*:[ \t]*(.+)$') {
+            $channel = $matches[1].Trim()
+        }
+        elseif ($line -match '^[ \t]*(?:Receive rate \(Mbps\)|受信速度 \(Mbps\))[ \t]*:[ \t]*(.+)$') {
+            $downlink = $matches[1].Trim()
+        }
+        elseif ($line -match '^[ \t]*(?:Transmit rate \(Mbps\)|送信速度 \(Mbps\))[ \t]*:[ \t]*(.+)$') {
+            $uplink = $matches[1].Trim()
+        }
+        elseif ($line -match '^[ \t]*(?:Signal|シグナル)[ \t]*:[ \t]*(.+)$') {
+            $signal = $matches[1].Trim()
+        }
     }
 
-    if ($matches_ssid) {
-            $ssid = $matches_ssid[$InterfaceIndex].Trim()
-            Write-Output "$ssid"
-        } else {
-            Write-Output "SSID情報が見つかりませんでした。"
-    }
-
-    if ($matches_IEEE802_11) {
-            $IEEE802_11 = $matches_IEEE802_11[$InterfaceIndex].Trim()
-            Write-Output "$IEEE802_11"
-        } else {
-            Write-Output "IEEE802_11情報が見つかりませんでした。"
-    }
-
-    if ($matches_band) {
-            $band = $matches_band[$InterfaceIndex].Trim()
-            Write-Output "$band"
-        } else {
-            Write-Output "バンド情報が見つかりませんでした。"
-    }
-
-    if ($matches_channel) {
-            $channel = $matches_channel[$InterfaceIndex].Trim()
-            Write-Output "$channel"
-        } else {
-            Write-Output "チャネル情報が見つかりませんでした。"
-    }
-
-    if ($matches_downlink) {
-            $downlink = $matches_downlink[$InterfaceIndex].Trim()
-            Write-Output "$downlink"
-        } else {
-            Write-Output "受信速度情報が見つかりませんでした。"
-    }
-
-    if ($matches_uplink) {
-            $uplink = $matches_uplink[$InterfaceIndex].Trim()
-            Write-Output "$uplink"
-        } else {
-            Write-Output "送信速度情報が見つかりませんでした。"
-    }
-
-    if ($matches_signal) {
-            $signal = $matches_signal[$InterfaceIndex].Trim()
-            Write-Output "$signal"
-        } else {
-            Write-Output "シグナル情報が見つかりませんでした。"
-    }
+    # 出力
+    if ($device) { Write-Output "デバイス名        : $device" } else { Write-Output "デバイス情報が見つかりませんでした。" }
+    if ($ssid) { Write-Output "SSID             : $ssid" } else { Write-Output "SSID情報が見つかりませんでした。" }
+    if ($radio) { Write-Output "無線の種類        : $radio" } else { Write-Output "IEEE802_11情報が見つかりませんでした。" }
+    if ($band) { Write-Output "バンド           : $band" } else { Write-Output "バンド情報が見つかりませんでした。" }
+    if ($channel) { Write-Output "チャネル         : $channel" } else { Write-Output "チャネル情報が見つかりませんでした。" }
+    if ($downlink) { Write-Output "受信速度 (Mbps)  : $downlink" }else { Write-Output "受信速度情報が見つかりませんでした。" }
+    if ($uplink) { Write-Output "送信速度 (Mbps)  : $uplink" } else { Write-Output "送信速度情報が見つかりませんでした。" }
+    if ($signal) { Write-Output "シグナル         : $signal" } else { Write-Output "シグナル情報が見つかりませんでした。" }
 }
 
 
+
+# -once オプションが指定された場合は1回だけ情報を表示して終了
+if ($once) {
+    Get-WiFiInfo
+    exit
+}
 
 # 定期的にWiFi情報を表示するループ
 while ($true) {
