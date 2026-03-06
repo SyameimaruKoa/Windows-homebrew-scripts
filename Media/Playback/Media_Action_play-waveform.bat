@@ -5,9 +5,9 @@ if /i "%~1"=="-h" goto :show_help
 if /i "%~1"=="--help" goto :show_help
 chcp 932 > nul
 cd /d "%TEMP%"
-ffmpeg -hide_banner -i "%~1" -vn -f wav "%~n1 ffmpeg tmp.wav"
+ffmpeg -hide_banner -i "%~1" -vn -f wav -c:a pcm_s32le "%TEMP%\%~n1 ffmpeg tmp.wav"
 call "C:\Users\kouki\OneDrive\PortableApps\WS151\WS.EXE" "%TEMP%\%~n1 ffmpeg tmp.wav"
-del "%~n1 ffmpeg tmp.wav"
+del "%TEMP%\%~n1 ffmpeg tmp.wav"
 exit
 
 :show_help

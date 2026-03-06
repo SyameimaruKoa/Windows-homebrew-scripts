@@ -158,33 +158,10 @@ if not "!input_name!"=="" set "lname=!input_name!"
 set "full_path=!dst!\!lname!"
 
 rem --- 存在確認と上書き (厳格なy/n) ---
-if exist "!full_path!" (
-  :ask_overwrite
-  echo.
-  echo  [警告] "!lname!" は既に存在しておる。
-  echo  上書きしてよろしいか？ (y/n)
-  set "ans="
-  set /P "ans=> "
-  
-  if /i "!ans!"=="y" goto do_delete
-  if /i "!ans!"=="n" (
-    echo  スキップしました。
-    exit /b
-  )
-  echo  "y" か "n" で答えるのじゃ。
-  goto ask_overwrite
-  
-  :do_delete
-  echo  既存ファイルを削除中...
-  if exist "!full_path!\" (
-    rmdir "!full_path!" 2>nul
-    ) else (
-    del /q "!full_path!"
-  )
-  if exist "!full_path!" (
-    echo  [エラー] 削除できませんでした。権限を確認してください。
-    exit /b
-  )
+if exist "!full_path!" call :confirm_and_delete "!full_path!" "!lname!"
+if errorlevel 1 (
+  endlocal
+  exit /b
 )
 
 rem --- 作成実行 ---
@@ -199,6 +176,48 @@ if %errorlevel%==0 ( echo  成功じゃ。 ) else ( echo  失敗したようじゃ。 )
 
 endlocal
 exit /b
+
+rem ========================================================
+rem  既存リンク/ファイルの確認と削除
+rem  引数: %1=FullPath, %2=LinkName
+rem  戻り値: 0=続行, 1=スキップ
+rem ========================================================
+:confirm_and_delete
+setlocal
+set "full_path=%~1"
+set "lname=%~2"
+
+:ask_overwrite
+echo.
+echo  [警告] "!lname!" は既に存在しておる。
+echo  上書きしてよろしいか？ (y/n)
+set "ans="
+set /P "ans=> "
+
+if /i "!ans!"=="y" goto do_delete
+if /i "!ans!"=="n" goto skip_existing
+
+echo  "y" か "n" で答えるのじゃ。
+goto ask_overwrite
+
+:do_delete
+echo  既存ファイルを削除中...
+if exist "!full_path!\" (
+  rmdir "!full_path!" 2>nul
+  ) else (
+  del /q "!full_path!"
+)
+
+if exist "!full_path!" (
+  echo  [エラー] 削除できませんでした。権限を確認してください。
+  endlocal & exit /b 1
+)
+
+endlocal & exit /b 0
+
+:skip_existing
+echo  スキップしました。
+endlocal & exit /b 1
 
 :show_help
 echo.
