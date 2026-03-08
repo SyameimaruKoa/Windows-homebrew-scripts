@@ -101,15 +101,15 @@ Mobile/         Android・サイドロード
 
 ### System — OS・ハードウェア・開発ツール
 
-| ファイル                                                                  | 説明                                        |
-| ------------------------------------------------------------------------- | ------------------------------------------- |
-| [Create-PowerShellShortcut.bat](System/Create-PowerShellShortcut.bat)     | .ps1 の D&D 実行ショートカットを生成        |
-| [Download-LatestChromeDriver.ps1](System/Download-LatestChromeDriver.ps1) | ChromeDriver 最新安定版を取得/更新          |
-| [Hardware_NVIDIA-Powerlimit.bat](System/Hardware_NVIDIA-Powerlimit.bat)   | NVIDIA GPU の電力制限を設定                 |
-| [OS_Enable-gpedit.bat](System/OS_Enable-gpedit.bat)                       | Home 版でグループポリシーエディターを有効化 |
-| [OS_Run-WSL-script.bat](System/OS_Run-WSL-script.bat)                     | WSL 上の .sh を実行                         |
-| [Tool_Compress-with-UPX.ps1](System/Tool_Compress-with-UPX.ps1)           | UPX で .exe を圧縮（バックアップ自動作成）  |
-| [エクスプローラー再起動.bat](System/エクスプローラー再起動.bat)           | Windows エクスプローラーを再起動            |
+| ファイル                                                                  | 説明                                             |
+| ------------------------------------------------------------------------- | ------------------------------------------------ |
+| [Create-PowerShellShortcut.bat](System/Create-PowerShellShortcut.bat)     | .ps1 の D&D 実行ショートカットを生成             |
+| [Download-LatestChromeDriver.ps1](System/Download-LatestChromeDriver.ps1) | ChromeDriver 最新版/指定版を取得・既存配置を更新 |
+| [Hardware_NVIDIA-Powerlimit.bat](System/Hardware_NVIDIA-Powerlimit.bat)   | NVIDIA GPU の電力制限を設定                      |
+| [OS_Enable-gpedit.bat](System/OS_Enable-gpedit.bat)                       | Home 版でグループポリシーエディターを有効化      |
+| [OS_Run-WSL-script.bat](System/OS_Run-WSL-script.bat)                     | WSL 上の .sh を実行                              |
+| [Tool_Compress-with-UPX.ps1](System/Tool_Compress-with-UPX.ps1)           | UPX で .exe を圧縮（バックアップ自動作成）       |
+| [エクスプローラー再起動.bat](System/エクスプローラー再起動.bat)           | Windows エクスプローラーを再起動                 |
 
 ### Network — ネットワーク関連
 
@@ -155,4 +155,21 @@ C:\> script_name.bat --help
 
 ```powershell
 PS C:\> Get-Help .\script_name.ps1 -Full
+```
+
+## Download-LatestChromeDriver.ps1 の使い方
+
+```powershell
+# 最新安定版を取得して検出済み配置を更新
+PS C:\> .\System\Download-LatestChromeDriver.ps1
+
+# 指定バージョンを更新 (位置引数)
+PS C:\> .\System\Download-LatestChromeDriver.ps1 145.0.7632.160
+
+# 指定バージョンをダウンロードのみ実行
+PS C:\> .\System\Download-LatestChromeDriver.ps1 -DownloadOnly 145.0.7632.160
+
+# ヘルプ表示
+PS C:\> .\System\Download-LatestChromeDriver.ps1 -h
+PS C:\> .\System\Download-LatestChromeDriver.ps1 --help
 ```
