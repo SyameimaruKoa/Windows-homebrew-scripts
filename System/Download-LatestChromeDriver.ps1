@@ -162,14 +162,33 @@ try {
         $stableUrl = $response.channels.Stable.downloads.chromedriver | Where-Object { $_.platform -eq 'win64' } | Select-Object -ExpandProperty url
     }
     else {
-        $response = Invoke-RestMethod -Uri $KnownGoodApiUrl -UseBasicParsing
-        $versionEntry = $response.versions | Where-Object { $_.version -eq $Version } | Select-Object -First 1
+        # まずは実体URLを直接組み立てて存在確認する
+        $directUrl = "https://storage.googleapis.com/chrome-for-testing-public/$Version/win64/chromedriver-win64.zip"
+        $directUrlAvailable = $false
 
-        if (-not $versionEntry) {
-            throw "指定バージョン '$Version' は known-good-versions に存在しません。"
+        try {
+            Invoke-WebRequest -Uri $directUrl -Method Head -UseBasicParsing -ErrorAction Stop | Out-Null
+            $directUrlAvailable = $true
+        }
+        catch {
+            $directUrlAvailable = $false
         }
 
-        $stableUrl = $versionEntry.downloads.chromedriver | Where-Object { $_.platform -eq 'win64' } | Select-Object -ExpandProperty url
+        if ($directUrlAvailable) {
+            Write-Host "指定バージョンは直接URLで取得可能です。" -ForegroundColor Cyan
+            $stableUrl = $directUrl
+        }
+        else {
+            # APIに存在する場合はAPI結果を優先的に利用
+            $response = Invoke-RestMethod -Uri $KnownGoodApiUrl -UseBasicParsing
+            $versionEntry = $response.versions | Where-Object { $_.version -eq $Version } | Select-Object -First 1
+
+            if (-not $versionEntry) {
+                throw "指定バージョン '$Version' は known-good-versions に存在せず、直接URLでも確認できませんでした。"
+            }
+
+            $stableUrl = $versionEntry.downloads.chromedriver | Where-Object { $_.platform -eq 'win64' } | Select-Object -ExpandProperty url
+        }
     }
 
     if ([string]::IsNullOrEmpty($stableUrl)) { throw "URLが見つかりません。" }
