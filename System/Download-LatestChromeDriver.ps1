@@ -24,21 +24,54 @@
 .PARAMETER DownloadOnly
     既存の検索を行わず、ダウンロードのみを行います。
 
+.PARAMETER Version
+    取得したい ChromeDriver のバージョンを指定します。
+    例: 145.0.7632.160
+    指定時は最新ではなく、指定バージョン (win64) の URL を検索してダウンロードします。
+
+.PARAMETER Help
+    詳細ヘルプを表示します。`-h` エイリアス、`--help` も利用できます。
+
 .EXAMPLE
     .\Download-LatestChromeDriver.ps1
     (検出されたすべての chromedriver.exe を更新します)
+
+.EXAMPLE
+    .\Download-LatestChromeDriver.ps1 -Version 145.0.7632.160
+    (指定バージョンの chromedriver.exe を更新/ダウンロードします)
+
+.EXAMPLE
+    .\Download-LatestChromeDriver.ps1 145.0.7632.160
+    (位置引数で指定バージョンの chromedriver.exe を更新/ダウンロードします)
+
+.EXAMPLE
+    .\Download-LatestChromeDriver.ps1 -h
+    .\Download-LatestChromeDriver.ps1 --help
+    (詳細ヘルプを表示します)
 #>
 [CmdletBinding()]
 param (
-    [Switch]$DownloadOnly
+    [Switch]$DownloadOnly,
+    [Parameter(Position = 0)]
+    [string]$Version,
+    [Alias('h')]
+    [Switch]$Help,
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$RemainingArgs
 )
 
-# --- ヘルプ表示用 (引数なしでも実行されるが、念のため) ---
-# Get-Help .\Download-LatestChromeDriver.ps1 -Full で詳細を表示
+#region Help
+$doubleDashHelpSpecified = $RemainingArgs -contains '--help'
+if ($Help.IsPresent -or $doubleDashHelpSpecified) {
+    Get-Help -Full $PSCommandPath
+    return
+}
+#endregion
 
 # --- 1. 変数定義 ---
-Write-Host "--- ChromeDriver アップデーター (v11: Multi-Target & Auto-Kill) ---" -ForegroundColor Green
-$ApiUrl = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json"
+Write-Host "--- ChromeDriver アップデーター (v12: Version Selectable) ---" -ForegroundColor Green
+$LatestApiUrl = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json"
+$KnownGoodApiUrl = "https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json"
 $updateTargets = @() # 更新対象のリスト
 $isUpdateMode = $false
 $downloadDir = $null
@@ -116,11 +149,29 @@ $extractDirName = "chromedriver-win64"
 $extractPath = Join-Path -Path $downloadDir -ChildPath $extractDirName
 $newDriverExe = Join-Path -Path $extractPath -ChildPath "chromedriver.exe"
 
-Write-Host "最新の Stable (win64) 版の URL を取得中..."
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    Write-Host "最新の Stable (win64) 版の URL を取得中..."
+}
+else {
+    Write-Host "指定バージョン ($Version) の URL を取得中..."
+}
+
 try {
-    $response = Invoke-RestMethod -Uri $ApiUrl -UseBasicParsing
-    $stableUrl = $response.channels.Stable.downloads.chromedriver | Where-Object { $_.platform -eq 'win64' } | Select-Object -ExpandProperty url
-    
+    if ([string]::IsNullOrWhiteSpace($Version)) {
+        $response = Invoke-RestMethod -Uri $LatestApiUrl -UseBasicParsing
+        $stableUrl = $response.channels.Stable.downloads.chromedriver | Where-Object { $_.platform -eq 'win64' } | Select-Object -ExpandProperty url
+    }
+    else {
+        $response = Invoke-RestMethod -Uri $KnownGoodApiUrl -UseBasicParsing
+        $versionEntry = $response.versions | Where-Object { $_.version -eq $Version } | Select-Object -First 1
+
+        if (-not $versionEntry) {
+            throw "指定バージョン '$Version' は known-good-versions に存在しません。"
+        }
+
+        $stableUrl = $versionEntry.downloads.chromedriver | Where-Object { $_.platform -eq 'win64' } | Select-Object -ExpandProperty url
+    }
+
     if ([string]::IsNullOrEmpty($stableUrl)) { throw "URLが見つかりません。" }
     Write-Host "URL: $stableUrl"
 }
