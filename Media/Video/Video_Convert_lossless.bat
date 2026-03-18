@@ -147,11 +147,14 @@ if %errorlevel%==1 (
     echo [1] 音声もそのままコピー
     echo [2] 全音声トラックをFLACへ変換
     choice /c 12
-    if %errorlevel%==1 set "_all_streams_audio_mode=copy"
-    if %errorlevel%==2 set "_all_streams_audio_mode=flac"
+    if errorlevel 2 (
+        set "_all_streams_audio_mode=flac"
+    ) else (
+        set "_all_streams_audio_mode=copy"
+    )
 
-    if "%_all_streams_audio_mode%"=="flac" (
-        if /i not "%_output_ext%"=="mkv" (
+    if "!_all_streams_audio_mode!"=="flac" (
+        if /i not "!_output_ext!"=="mkv" (
             set "_output_ext=mkv"
             echo 全音声をFLAC化するため、出力拡張子を「.mkv」に変更したぞ。
         )
@@ -195,9 +198,16 @@ rem =================================================================
 :process_file
 rem --- 個別ファイル処理のサブルーチン ---
 set "input_file=%~1"
-rem 一時フォルダを対象ファイルの場所に作成
-set "TEMP_DIR=%~dp1ffmpeg_temp"
-if not exist "%TEMP_DIR%" mkdir "%TEMP_DIR%"
+rem 一時フォルダは書き込み可能な %%TEMP%% 配下に作成
+set "TEMP_ROOT=%TEMP%\Video_Convert_lossless"
+if not exist "%TEMP_ROOT%" mkdir "%TEMP_ROOT%" >nul 2>nul
+set "TEMP_DIR=%TEMP_ROOT%\%~n1_%RANDOM%"
+mkdir "%TEMP_DIR%" >nul 2>nul
+if not exist "%TEMP_DIR%\" (
+    echo    - [エラー] 一時フォルダを作成できなかった。このファイルはスキップする。
+    set "_error_occurred=1"
+    goto :eof
+)
 
 rem --- 出力ファイル名の設定 ---
 set "output_name=%~n1"
@@ -289,7 +299,17 @@ if errorlevel 1 (
     echo    - [エラー] ffmpegでの最終処理に失敗した。
     set "_error_occurred=1"
 ) else (
-    echo    - 処理成功: "%output_file%"
+    if not exist "%output_file%" (
+        echo    - [エラー] 出力ファイルが作成されなかった。
+        set "_error_occurred=1"
+        goto :cleanup_temp
+    )
+    for %%Z in ("%output_file%") do set "_output_size=%%~zZ"
+    if "!_output_size!"=="0" (
+        echo    - [エラー] 出力ファイルが0バイトのため失敗と判定した。
+        set "_error_occurred=1"
+        goto :cleanup_temp
+    )
     
     rem =================================================================
     rem ★★★ ここからが変更箇所 (出力先の変更) ★★★
@@ -314,7 +334,15 @@ if errorlevel 1 (
     )
 
     rem 決定した出力先にファイルを移動
-    move "%output_file%" "%output_dir%" > nul
+    set "final_output=!output_dir!!output_name!.!output_ext!"
+    if exist "!final_output!" del /f /q "!final_output!" >nul 2>nul
+    move /y "%output_file%" "!output_dir!" > nul
+    if errorlevel 1 (
+        echo    - [エラー] 出力ファイルの移動に失敗した。
+        set "_error_occurred=1"
+    ) else (
+        echo    - 処理成功: "!final_output!"
+    )
     rem =================================================================
     rem ★★★ 変更箇所はここまで ★★★
     rem =================================================================
