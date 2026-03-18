@@ -55,6 +55,7 @@ if "%_run_as_session_mpd_mode%"=="yes" (
     set "_session_mpd_mode=yes"
     set "_delete_original=no"
     set "_output_ext=mp4"
+    set "_output_destination=input"
     set "_keep_all_streams=yes"
     set "_audio_mode=copy"
     goto :file_loop_start
@@ -112,16 +113,27 @@ if %errorlevel%==1 (
 )
 
 echo.
-choice /c 12345 /m "出力ファイルの拡張子を選べ。[1]MP4 [2]M4V [3]MKV [4]MOV [5]その他"
+choice /c 123456 /m "出力ファイルの拡張子を選べ。[1]MP4 [2]M4V [3]MKV [4]MOV [5]WEBM [6]その他"
 if %errorlevel%==1 set "_output_ext=mp4"
 if %errorlevel%==2 set "_output_ext=m4v"
 if %errorlevel%==3 set "_output_ext=mkv"
 if %errorlevel%==4 set "_output_ext=mov"
-if %errorlevel%==5 (
+if %errorlevel%==5 set "_output_ext=webm"
+if %errorlevel%==6 (
     echo.
     set /p "_output_ext=拡張子を入力せよ (例: webm): "
 )
 echo 出力拡張子は「.%_output_ext%」じゃな。
+
+echo.
+choice /c 12 /m "出力先を選べ。[1]入力と同じフォルダ [2]ユーザーのDownloadsフォルダ"
+if %errorlevel%==1 set "_output_destination=input"
+if %errorlevel%==2 set "_output_destination=downloads"
+if "%_output_destination%"=="downloads" (
+    echo 出力先は「%%USERPROFILE%%\Downloads」にするぞ。
+) else (
+    echo 出力先は入力ファイルと同じ場所にするぞ。
+)
 
 echo.
 choice /m "音声や字幕など、全てのストリームを保持するか？"
@@ -137,10 +149,19 @@ echo 音声の処理方法を選べ。
 echo [1] QAACで再エンコード
 echo [2] WAV(PCM)に変換
 echo [3] そのままコピー (パススルー)
-choice /c 123
+echo [4] FLACに変換してMKVで出力
+choice /c 1234
 if %errorlevel%==1 set "_audio_mode=qaac"
 if %errorlevel%==2 set "_audio_mode=pcm"
 if %errorlevel%==3 set "_audio_mode=copy"
+if %errorlevel%==4 set "_audio_mode=flac"
+
+if "%_audio_mode%"=="flac" (
+    if /i not "%_output_ext%"=="mkv" (
+        set "_output_ext=mkv"
+        echo FLAC音声を保持するため、出力拡張子を「.mkv」に変更したぞ。
+    )
+)
 
 if "%_audio_mode%"=="qaac" (
     echo.
@@ -193,6 +214,7 @@ rem --- 個別ストリーム処理 ---
 if "%_audio_mode%"=="copy" goto :build_audio_copy
 if "%_audio_mode%"=="pcm" goto :build_audio_pcm
 if "%_audio_mode%"=="qaac" goto :build_audio_qaac
+if "%_audio_mode%"=="flac" goto :build_audio_flac
 goto :build_audio_copy
 
 
@@ -234,6 +256,11 @@ goto :build_audio_copy
     set "ffmpeg_codecs=%ffmpeg_codecs% -c:a copy"
     goto :build_end
 
+:build_audio_flac
+    set "ffmpeg_maps=-map 0:v:0 -map 0:a:0?"
+    set "ffmpeg_codecs=%ffmpeg_codecs% -c:a flac"
+    goto :build_end
+
 
 :build_end
 rem --- ffmpegの実行 ---
@@ -250,6 +277,11 @@ if errorlevel 1 (
     rem =================================================================
     rem デフォルトの出力先は入力ファイルと同じ場所
     set "output_dir=%~dp1"
+
+    rem 通常モードでDownloads出力が選択されていた場合
+    if /i "%_output_destination%"=="downloads" (
+        set "output_dir=%USERPROFILE%\Downloads\"
+    )
     
     rem session.mpdモードの場合、出力先を入力ファイルの親の親フォルダに変更する
     if "%_session_mpd_mode%"=="yes" (
@@ -295,8 +327,9 @@ echo   - フォルダ: %~nx0 ^<folder1^> ^<folder2^> ...  (各フォルダ内の session.mp
 echo   - mpd直指定: %~nx0 session.mpd
 echo.
 echo [主なオプション(対話式)]
-echo   - 出力拡張子選択 (mp4/m4v/mkv/mov/任意)
-echo   - ストリーム保持(全保持) または 音声の個別処理(copy/PCM/QAAC)
+echo   - 出力拡張子選択 (mp4/m4v/mkv/mov/webm/任意)
+echo   - 出力先選択 (入力フォルダ / %%USERPROFILE%%\Downloads)
+echo   - ストリーム保持(全保持) または 音声の個別処理(copy/PCM/QAAC/FLAC^+MKV)
 echo   - 元ファイル削除の有無
 echo.
 echo [前提]
