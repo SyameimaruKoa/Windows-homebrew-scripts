@@ -57,6 +57,7 @@ if "%_run_as_session_mpd_mode%"=="yes" (
     set "_output_ext=mp4"
     set "_output_destination=input"
     set "_keep_all_streams=yes"
+    set "_all_streams_audio_mode=copy"
     set "_audio_mode=copy"
     goto :file_loop_start
 )
@@ -139,8 +140,22 @@ echo.
 choice /m "音声や字幕など、全てのストリームを保持するか？"
 if %errorlevel%==1 (
     set "_keep_all_streams=yes"
-    set "_audio_mode=copy"
     echo 全てのストリームを保持するぞ。
+
+    echo.
+    echo 全保持時の音声処理を選べ。
+    echo [1] 音声もそのままコピー
+    echo [2] 全音声トラックをFLACへ変換
+    choice /c 12
+    if %errorlevel%==1 set "_all_streams_audio_mode=copy"
+    if %errorlevel%==2 set "_all_streams_audio_mode=flac"
+
+    if "%_all_streams_audio_mode%"=="flac" (
+        if /i not "%_output_ext%"=="mkv" (
+            set "_output_ext=mkv"
+            echo 全音声をFLAC化するため、出力拡張子を「.mkv」に変更したぞ。
+        )
+    )
     goto :eof
 )
 
@@ -220,7 +235,11 @@ goto :build_audio_copy
 
 :build_all_streams
     set "ffmpeg_maps=-map 0"
-    set "ffmpeg_codecs=-c copy"
+    if /i "%_all_streams_audio_mode%"=="flac" (
+        set "ffmpeg_codecs=-c copy -c:a flac"
+    ) else (
+        set "ffmpeg_codecs=-c copy"
+    )
     goto :build_end
 
 :build_audio_copy
@@ -329,7 +348,8 @@ echo.
 echo [主なオプション(対話式)]
 echo   - 出力拡張子選択 (mp4/m4v/mkv/mov/webm/任意)
 echo   - 出力先選択 (入力フォルダ / %%USERPROFILE%%\Downloads)
-echo   - ストリーム保持(全保持) または 音声の個別処理(copy/PCM/QAAC/FLAC^+MKV)
+echo   - ストリーム保持時: 音声コピー or 全音声FLAC変換(自動でMKV)
+echo   - ストリーム個別処理: copy/PCM/QAAC/FLAC^+MKV
 echo   - 元ファイル削除の有無
 echo.
 echo [前提]
