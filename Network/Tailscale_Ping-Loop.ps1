@@ -30,15 +30,42 @@ if ($help) {
     exit
 }
 
+function Invoke-SelfElevation {
+    param(
+        [string[]]$ArgumentList
+    )
+
+    $sudoCommand = Get-Command sudo -ErrorAction SilentlyContinue
+    if ($sudoCommand) {
+        & $sudoCommand @ArgumentList
+        exit
+    }
+
+    $gsudoCommand = Get-Command gsudo -ErrorAction SilentlyContinue
+    if ($gsudoCommand) {
+        & $gsudoCommand @ArgumentList
+        exit
+    }
+
+    Start-Process powershell.exe -ArgumentList $ArgumentList -Verb RunAs
+    exit
+}
+
 # Tailscale Pingループスクリプト (UTF-8で保存)
 
 # --- 管理者権限のチェックと昇格 ---
 # 今のユーザーが管理者かどうか確認するのじゃ
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "管理者権限で実行されておらん！自動で昇格するぞ。" -ForegroundColor Yellow
-    # 自分自身を管理者として再起動するのじゃ
-    Start-Process powershell.exe -ArgumentList "-File", "`"$PSCommandPath`"" -Verb RunAs
-    exit # 昇格が完了したら、今のスクリプトは役目を終えるのじゃ
+    $relaunchArguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath)
+    foreach ($entry in $PSBoundParameters.GetEnumerator()) {
+        $relaunchArguments += "-$($entry.Key)"
+        if ($entry.Value -is [System.Management.Automation.SwitchParameter]) {
+            continue
+        }
+        $relaunchArguments += [string]$entry.Value
+    }
+    Invoke-SelfElevation -ArgumentList $relaunchArguments
 }
 # ここから下が、元のスクリプトじゃ
 Write-Host "管理者として実行されたぞ。よしよし。" -ForegroundColor Green

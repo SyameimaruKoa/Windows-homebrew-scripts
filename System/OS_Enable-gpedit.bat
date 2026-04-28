@@ -12,6 +12,16 @@ goto start
 exit
 :Administratorstart
 echo このバッチファイルは一般ユーザーには対応していないので管理者権限を要求して再起動します
+where sudo >NUL 2>nul
+if not errorlevel 1 (
+sudo "%~f0" %*
+exit /b
+)
+where gsudo >NUL 2>nul
+if not errorlevel 1 (
+gsudo "%~f0" %*
+exit /b
+)
 @powershell start-process powershell %~0 -verb runas
 if %errorlevel%==1 (
 echo 権限要求を拒否されたので再度要求します。

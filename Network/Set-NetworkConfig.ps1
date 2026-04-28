@@ -34,11 +34,39 @@ if ($h -or $help) {
 }
 #endregion
 
+function Invoke-SelfElevation {
+    param(
+        [string[]]$ArgumentList
+    )
+
+    $sudoCommand = Get-Command sudo -ErrorAction SilentlyContinue
+    if ($sudoCommand) {
+        & $sudoCommand @ArgumentList
+        exit
+    }
+
+    $gsudoCommand = Get-Command gsudo -ErrorAction SilentlyContinue
+    if ($gsudoCommand) {
+        & $gsudoCommand @ArgumentList
+        exit
+    }
+
+    Start-Process powershell.exe -ArgumentList $ArgumentList -Verb RunAs
+    exit
+}
+
 # 管理者権限チェック
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     Write-Warning "これを使うには管理者権限が必要じゃ！出直してまいれ。"
-    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
-    exit
+    $relaunchArguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath)
+    foreach ($entry in $PSBoundParameters.GetEnumerator()) {
+        $relaunchArguments += "-$($entry.Key)"
+        if ($entry.Value -is [System.Management.Automation.SwitchParameter]) {
+            continue
+        }
+        $relaunchArguments += [string]$entry.Value
+    }
+    Invoke-SelfElevation -ArgumentList $relaunchArguments
 }
 
 Add-Type -AssemblyName System.Windows.Forms

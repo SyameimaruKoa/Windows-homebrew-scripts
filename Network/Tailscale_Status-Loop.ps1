@@ -46,15 +46,39 @@ if ($Help) {
     exit
 }
 
+function Invoke-SelfElevation {
+    param(
+        [string[]]$ArgumentList
+    )
+
+    $sudoCommand = Get-Command sudo -ErrorAction SilentlyContinue
+    if ($sudoCommand) {
+        & $sudoCommand @ArgumentList
+        exit
+    }
+
+    $gsudoCommand = Get-Command gsudo -ErrorAction SilentlyContinue
+    if ($gsudoCommand) {
+        & $gsudoCommand @ArgumentList
+        exit
+    }
+
+    Start-Process powershell.exe -ArgumentList $ArgumentList -Verb RunAs
+    exit
+}
+
 # --- 管理者権限のチェックと昇格 ---
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "管理者権限で実行されておらん！自動で昇格するぞ。" -ForegroundColor Yellow
-    $arguments = "-File `"$PSCommandPath`""
-    if ($PSBoundParameters.Count -gt 0) {
-        $arguments += " " + ($PSBoundParameters.GetEnumerator() | ForEach-Object { "-$($_.Key) $($_.Value)" })
+    $relaunchArguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath)
+    foreach ($entry in $PSBoundParameters.GetEnumerator()) {
+        $relaunchArguments += "-$($entry.Key)"
+        if ($entry.Value -is [System.Management.Automation.SwitchParameter]) {
+            continue
+        }
+        $relaunchArguments += [string]$entry.Value
     }
-    Start-Process powershell.exe -ArgumentList $arguments -Verb RunAs
-    exit
+    Invoke-SelfElevation -ArgumentList $relaunchArguments
 }
 Write-Host "管理者として実行されたぞ。よしよし。" -ForegroundColor Green
 Write-Host ""

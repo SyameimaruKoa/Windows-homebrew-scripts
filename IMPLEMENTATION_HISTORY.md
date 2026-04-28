@@ -1,5 +1,19 @@
 # 実装履歴
 
+## 2026-04-28
+
+### 管理者権限要求の優先順統一
+- 管理者権限を要求するスクリプトを調査し、`sudo > gsudo > 既存の RunAs` の順で昇格するよう統一。
+- PowerShell スクリプトの昇格処理を更新。
+  - `Network/Set-NetworkConfig.ps1`
+  - `Network/Tailscale_Ping-Loop.ps1`
+  - `Network/Tailscale_Status-Loop.ps1`
+- バッチファイルの昇格処理を更新。
+  - `System/Hardware_NVIDIA-Powerlimit.bat`
+  - `System/OS_Enable-gpedit.bat`
+  - `Mobile/Sideload_Start-AltServer.bat`
+- ネットワーク配下に残っていた不要な生成ファイル `[作成完了]` を削除。
+
 ## 2026-03-18
 
 ### Media/Video/Video_Convert_lossless.bat
