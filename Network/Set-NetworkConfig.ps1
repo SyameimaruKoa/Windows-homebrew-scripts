@@ -41,13 +41,15 @@ function Invoke-SelfElevation {
 
     $sudoCommand = Get-Command sudo -ErrorAction SilentlyContinue
     if ($sudoCommand) {
-        & $sudoCommand @ArgumentList
+        $allArgs = @('powershell.exe') + $ArgumentList
+        & $sudoCommand @allArgs
         exit
     }
 
     $gsudoCommand = Get-Command gsudo -ErrorAction SilentlyContinue
     if ($gsudoCommand) {
-        & $gsudoCommand @ArgumentList
+        $allArgs = @('powershell.exe') + $ArgumentList
+        & $gsudoCommand @allArgs
         exit
     }
 

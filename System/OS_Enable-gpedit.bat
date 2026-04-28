@@ -14,18 +14,18 @@ exit
 echo このバッチファイルは一般ユーザーには対応していないので管理者権限を要求して再起動します
 where sudo >NUL 2>nul
 if not errorlevel 1 (
-sudo "%~f0" %*
-exit /b
+  sudo "%~f0" %*
+  exit /b
 )
 where gsudo >NUL 2>nul
 if not errorlevel 1 (
-gsudo "%~f0" %*
-exit /b
+  gsudo "%~f0" %*
+  exit /b
 )
 @powershell start-process powershell %~0 -verb runas
 if %errorlevel%==1 (
-echo 権限要求を拒否されたので再度要求します。
-goto Administrator
+  echo 権限要求を拒否されたので再度要求します。
+  goto Administrator
 )
 exit
 
@@ -45,12 +45,12 @@ echo.
 echo Windows Home Editionでローカルグループポリシーエディター(gpedit.msc)を有効にします。
 echo.
 echo 使い方:
-echo   %~n0 [引数]
+echo  %~n0 [引数]
 echo.
-echo   何かしらの引数を指定して実行してください。
-echo   例: %~n0 start
+echo  何かしらの引数を指定して実行してください。
+echo  例: %~n0 start
 echo.
-echo   -h, --help    このヘルプを表示します。
+echo  -h, --help  このヘルプを表示します。
 echo.
 pause
 exit /b
