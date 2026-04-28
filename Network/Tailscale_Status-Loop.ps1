@@ -103,7 +103,8 @@ try {
     $rawUI.WindowSize = $winSize
     
     Write-Host "画面サイズを調整したぞ。ここまでは順調じゃ。" -ForegroundColor Cyan
-} catch {
+}
+catch {
     Write-Host "画面サイズの変更に失敗したようじゃが、続行するぞ。" -ForegroundColor Yellow
 }
 
@@ -140,7 +141,7 @@ while ($true) {
             $ip = $parts[0]
             $hostName = $parts[1]
             $os = $parts[3] # Email($parts[2])をスキップ
-            $status = $parts[4..($parts.Length-1)] -join ' '
+            $status = $parts[4..($parts.Length - 1)] -join ' '
             
             # 固定幅フォーマットを作成
             $line = "{0,-16} {1,-25} {2,-8} {3}" -f $ip, $hostName, $os, $status
@@ -152,11 +153,13 @@ while ($true) {
             }
             
             Write-Host $line
-        } else {
+        }
+        else {
             # 解析できない行もパディングして表示
             if ($_.Length -lt $currentWidth) {
                 Write-Host $_.PadRight($currentWidth)
-            } else {
+            }
+            else {
                 Write-Host $_
             }
         }
