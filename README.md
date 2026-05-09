@@ -13,7 +13,7 @@
 ## 他のリポジトリにあるバッチ or スクリプト
 
 - [qaacファイル更新](https://gist.github.com/SyameimaruKoa/c9e6cc876d30bebf10232de5d2aab688)
-- [ffmpegで動画を再エンコード](https://gist.github.com/SyameimaruKoa/635aef100c1b3f9f06b6a21c9bc60a17)
+- [ffmpegで動画を再エンコード](https://github.com/SyameimaruKoa/Windows-ReEncodeUtility)
 
 ## フォルダ構成
 
