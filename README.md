@@ -106,6 +106,7 @@ Mobile/         Android・サイドロード
 | [Create-PowerShellShortcut.bat](System/Create-PowerShellShortcut.bat)     | .ps1 の D&D 実行ショートカットを生成             |
 | [Download-LatestChromeDriver.ps1](System/Download-LatestChromeDriver.ps1) | ChromeDriver 最新版/指定版を取得・既存配置を更新 |
 | [Hardware_NVIDIA-Powerlimit.bat](System/Hardware_NVIDIA-Powerlimit.bat)   | NVIDIA GPU の電力制限を設定                      |
+| [Hardware_NVIDIA-Clocklimit.bat](System/Hardware_NVIDIA-Clocklimit.bat)   | NVIDIA GPU の最大クロックを制限 (Max-Q 発熱対策) |
 | [OS_Enable-gpedit.bat](System/OS_Enable-gpedit.bat)                       | Home 版でグループポリシーエディターを有効化      |
 | [OS_Run-WSL-script.bat](System/OS_Run-WSL-script.bat)                     | WSL 上の .sh を実行                              |
 | [Tool_Compress-with-UPX.ps1](System/Tool_Compress-with-UPX.ps1)           | UPX で .exe を圧縮（バックアップ自動作成）       |
