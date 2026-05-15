@@ -18,18 +18,18 @@ exit
 echo このバッチファイルは一般ユーザーには対応していないので管理者権限を要求して再起動します
 where sudo >NUL 2>nul
 if not errorlevel 1 (
-  sudo "%~f0" %*
-  exit /b
+    sudo "%~f0" %*
+    exit /b
 )
 where gsudo >NUL 2>nul
 if not errorlevel 1 (
-  gsudo "%~f0" %*
-  exit /b
+    gsudo "%~f0" %*
+    exit /b
 )
 @powershell start-process powershell %~0 -verb runas
 if %errorlevel%==1 (
-  echo 権限要求を拒否されたので再度要求します。
-  goto Administrator
+    echo 権限要求を拒否されたので再度要求します。
+    goto Administrator
 )
 exit
 
@@ -51,18 +51,18 @@ echo ============================================
 echo  NVIDIA GPU クロック管理ツール (Max-Q対応)
 echo ============================================
 echo.
-echo --- 現在のクロック状態 ---
+echo --- 現在のクロック状態とデフォルト最大クロック ---
 echo.
-nvidia-smi -q -d CLOCK
+nvidia-smi --query-gpu=name,clocks.current.graphics,clocks.max.graphics --format=csv
 echo.
 echo --------------------------------------------
 echo.
 set /p "TARGET_VAL=制限したい最大クロック数(MHz)か 'reset' を入力するのじゃ (終了は何も入力せずEnter): "
 
 if not defined TARGET_VAL (
-  echo 何も入力されなかったから終了するぞ。
-  timeout /t 2 > nul
-  goto :eof
+    echo 何も入力されなかったから終了するぞ。
+    timeout /t 2 > nul
+    goto :eof
 )
 
 rem =================================================================
@@ -70,11 +70,11 @@ rem  引数を使った直接設定モードの処理
 rem =================================================================
 :set_clock_direct
 if /i "%TARGET_VAL%"=="reset" (
-  echo クロック制限を解除するぞ...
-  nvidia-smi -rgc
-  echo 解除完了じゃ！
-  pause
-  goto :eof
+    echo クロック制限を解除するぞ...
+    nvidia-smi -rgc
+    echo 解除完了じゃ！
+    pause
+    goto :eof
 )
 
 echo.
@@ -83,11 +83,11 @@ if "%~1"=="" pause > nul
 echo.
 nvidia-smi -lgc 210,%TARGET_VAL%
 if %errorlevel% equ 0 (
-  echo.
-  echo 制限完了じゃ！これで少しは冷えるはずじゃのう。
-  ) else (
-  echo.
-  echo 失敗したぞ。数値が間違っておらんか確認するのじゃ。
+    echo.
+    echo 制限完了じゃ！これで少しは冷えるはずじゃのう。
+) else (
+    echo.
+    echo 失敗したぞ。数値が間違っておらんか確認するのじゃ。
 )
 pause
 goto :eof
