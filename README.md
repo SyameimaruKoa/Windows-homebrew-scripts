@@ -86,18 +86,19 @@ Mobile/         Android・サイドロード
 
 ### File — ファイル操作
 
-| ファイル                                                                    | 説明                                          |
-| --------------------------------------------------------------------------- | --------------------------------------------- |
-| [File_Convert-GboardDictionary.ps1](File/File_Convert-GboardDictionary.ps1) | Gboard ↔ Google日本語入力の辞書形式を相互変換 |
-| [File_Create-Symlink.bat](File/File_Create-Symlink.bat)                     | ファイル/フォルダのシンボリックリンク作成     |
-| [File_Delete-empty-folders.bat](File/File_Delete-empty-folders.bat)         | 配下の空フォルダを一括削除                    |
-| [File_Distribute-and-Move.bat](File/File_Distribute-and-Move.bat)           | ルールに基づき各フォルダへ分配・移動          |
-| [File_Move-to-parent-folder.bat](File/File_Move-to-parent-folder.bat)       | 親フォルダへファイルを移動                    |
-| [File_NTFS-Compression.bat](File/File_NTFS-Compression.bat)                 | NTFS 圧縮/解凍を適用                          |
-| [File_Open-in-order.bat](File/File_Open-in-order.bat)                       | 指定順で複数ファイルを開く                    |
-| [File_Open-Temp-Dir.bat](File/File_Open-Temp-Dir.bat)                       | 一時フォルダ（%TEMP%）を開く                  |
-| [File_Replace-Text.bat](File/File_Replace-Text.bat)                         | テキスト置換を一括実行                        |
-| [File_Sort-by-month.bat](File/File_Sort-by-month.bat)                       | 更新月 (yyyy-MM) ごとに仕分け                 |
+| ファイル                                                                                  | 説明                                                                          |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| [File_Convert-GboardDictionary.ps1](File/File_Convert-GboardDictionary.ps1)               | Gboard の辞書（TSV）を Google日本語入力向けに一方向で変換（"\tja-JP" を除去） |
+| [File_Convert-GboardDictionary-legacy.ps1](File/File_Convert-GboardDictionary-legacy.ps1) | レガシー: 対話式メニューで双方向変換（Gboard ↔ Google日本語入力）             |
+| [File_Create-Symlink.bat](File/File_Create-Symlink.bat)                                   | ファイル/フォルダのシンボリックリンク作成                                     |
+| [File_Delete-empty-folders.bat](File/File_Delete-empty-folders.bat)                       | 配下の空フォルダを一括削除                                                    |
+| [File_Distribute-and-Move.bat](File/File_Distribute-and-Move.bat)                         | ルールに基づき各フォルダへ分配・移動                                          |
+| [File_Move-to-parent-folder.bat](File/File_Move-to-parent-folder.bat)                     | 親フォルダへファイルを移動                                                    |
+| [File_NTFS-Compression.bat](File/File_NTFS-Compression.bat)                               | NTFS 圧縮/解凍を適用                                                          |
+| [File_Open-in-order.bat](File/File_Open-in-order.bat)                                     | 指定順で複数ファイルを開く                                                    |
+| [File_Open-Temp-Dir.bat](File/File_Open-Temp-Dir.bat)                                     | 一時フォルダ（%TEMP%）を開く                                                  |
+| [File_Replace-Text.bat](File/File_Replace-Text.bat)                                       | テキスト置換を一括実行                                                        |
+| [File_Sort-by-month.bat](File/File_Sort-by-month.bat)                                     | 更新月 (yyyy-MM) ごとに仕分け                                                 |
 
 ### System — OS・ハードウェア・開発ツール
 

@@ -1,44 +1,34 @@
 ﻿<#
 .SYNOPSIS
-    GboardとGoogle日本語入力のユーザー辞書ファイル形式を相互に変換するのじゃ。ZIP対応版じゃぞ。
+    Gboard のユーザー辞書（TSV）を Google 日本語入力向けに変換する一方向ツール。
 
 .DESCRIPTION
-    このスクリプトは、Gboardのユーザー辞書エクスポートファイル（TSV形式）と、
-    Google日本語入力のユーザー辞書エクスポートファイル（TSV形式）のフォーマットを相互に変換するのじゃ。
-    通常はファイルと同じ場所に変換ファイルを出力するが、ZIPファイルを指定した場合は
-    内部の「dictionary.txt」を変換し、ユーザーの「ダウンロード」フォルダに出力するのじゃ。
+    このスクリプトは Gboard のエクスポートファイル（TSV 形式）を入力とし、
+    Google 日本語入力の辞書に適した形式へ変換する簡易ツールじゃ。
+    変換内容は一方向のみで、行中のタブ付きの言語タグ "ja-JP"（"\tja-JP"）を
+    単純に除去する操作を行う。ZIP を指定した場合は内部の "dictionary.txt" を変換し、
+    出力は ZIP のファイル名に "_converted.txt" を付けてユーザーの Downloads フォルダへ保存する。
 
 .PARAMETER Path
-    変換したい辞書ファイル（.txt）またはZIPファイル（.zip）のパスを指定するのじゃ。必須じゃぞ。
+    変換対象の辞書ファイル（.txt）または ZIP ファイル（.zip）を指定する。必須。
 
 .EXAMPLE
-    PS C:\> .\Convert-GboardDictionary.ps1 -Path "C:\temp\archive.zip"
-    
-    ZIPファイルを指定した場合、中身の dictionary.txt を変換して
+    PS C:\> .\File_Convert-GboardDictionary.ps1 -Path "C:\temp\gboard_dictionary.txt"
+
+    PS C:\> .\File_Convert-GboardDictionary.ps1 -Path "C:\temp\archive.zip"
+    ZIP を指定した場合、内部の dictionary.txt を変換して
     C:\Users\[User]\Downloads\archive_converted.txt に出力する。
 
 .NOTES
     作者: わっち
-    バージョン: 1.2
-    文字コードはUTF-8として処理するからのう。
+    バージョン: 1.3
+    文字コードは UTF-8 で処理する。
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, Position = 0, HelpMessage = "変換対象のファイルパスを指定してくだされ。")]
     [string]$Path
 )
-
-#region 変換メニュー表示と選択
-function Show-Menu {
-    Write-Host "-----------------------------------------"
-    Write-Host " Gboard・Google日本語入力 辞書変換"
-    Write-Host "-----------------------------------------"
-    Write-Host "変換方向を選択するのじゃ"
-    Write-Host "  1: Gboard → Google日本語入力"
-    Write-Host "  2: Google日本語入力 → Gboard"
-    Write-Host "  Q: 終了"
-    Write-Host "-----------------------------------------"
-}
 
 if (-not (Test-Path -Path $Path -PathType Leaf)) {
     Write-Error "指定されたファイルが見つからんのじゃ！ パスを確認せい！: `"$Path`""
@@ -56,7 +46,8 @@ if ($isZip) {
     $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
     try {
         Expand-Archive -LiteralPath $Path -DestinationPath $tempDir -Force -ErrorAction Stop
-    } catch {
+    }
+    catch {
         Write-Error "ZIPの展開に失敗したわ！壊れておらぬか？: $_"
         return
     }
@@ -76,33 +67,10 @@ if ($isZip) {
 $beforeString = ""
 $afterString = ""
 
-:MenuLoop while ($true) {
-    Show-Menu
-    $choice = Read-Host ">> 番号を入力してくだされ"
-
-    switch ($choice) {
-        '1' {
-            $beforeString = "`tja-JP"
-            $afterString = "`t品詞なし`t"
-            break MenuLoop
-        }
-        '2' {
-            $beforeString = "`t品詞なし`t"
-            $afterString = "`tja-JP"
-            break MenuLoop
-        }
-        'q' {
-            Write-Host "処理を中断したのじゃ。"
-            if ($tempDir) { Remove-Item -Path $tempDir -Recurse -Force }
-            return
-        }
-        default {
-            Write-Host "喝！ 1, 2, または Q のいずれかを入力するのじゃ！" -ForegroundColor Red
-            Start-Sleep -Seconds 2
-        }
-    }
-}
-#endregion
+# 一方向変換: Gboard → Google日本語入力
+# 単純にタブ付きの "ja-JP" を除去する (例: "\tja-JP" -> "")
+$beforeString = "`tja-JP"
+$afterString = ""
 
 #region ファイルの読み込み・置換・書き込み処理
 try {
@@ -123,9 +91,11 @@ try {
     Write-Host "処理が完了したぞ！" -ForegroundColor Green
     Write-Host "出力ファイル: `"$outputPath`""
 
-} catch {
+}
+catch {
     Write-Error "ファイルの処理中にエラーが発生したのじゃ: $_"
-} finally {
+}
+finally {
     if ($tempDir -and (Test-Path $tempDir)) {
         Remove-Item -Path $tempDir -Recurse -Force
     }

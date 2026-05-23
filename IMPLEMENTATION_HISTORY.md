@@ -43,3 +43,11 @@
 - 移動先パスの変数展開不具合を修正。
   - `if (...) else (...)` ブロック内の `%output_dir%` / `%final_output%` を `!output_dir!` / `!final_output!` に変更。
   - 実行時の正しい出力先パスで移動と成功表示が行われるよう修正。
+
+## 2026-05-23
+
+### File_Convert-GboardDictionary.ps1 の一方向化
+- `File_Convert-GboardDictionary.ps1` を双方向（Gboard ↔ Google日本語入力）から一方向（Gboard → Google日本語入力）に変更。
+  - 対話式メニューを削除し、常にタブ付きの `ja-JP`（`\tja-JP`）を削除する単純置換を行うように修正。
+  - スクリプト内のヘッダー、説明コメントを一方向仕様に更新し、バージョンを `1.3` に上げた。
+  - README の該当説明を一方向変換へ修正。
