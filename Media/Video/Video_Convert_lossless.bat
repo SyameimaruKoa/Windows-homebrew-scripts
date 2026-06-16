@@ -59,6 +59,7 @@ if "%_run_as_session_mpd_mode%"=="yes" (
     set "_keep_all_streams=yes"
     set "_all_streams_audio_mode=copy"
     set "_audio_mode=copy"
+    set "_add_stereo_mode=no"
     goto :file_loop_start
 )
 
@@ -159,7 +160,7 @@ if %errorlevel%==1 (
             echo 全音声をFLAC化するため、出力拡張子を「.mkv」に変更したぞ。
         )
     )
-    goto :eof
+    goto :check_stereo_mode
 )
 
 echo.
@@ -189,6 +190,21 @@ if "%_audio_mode%"=="qaac" (
     choice /c 12
     if %errorlevel%==1 set "_qaac_profile="
     if %errorlevel%==2 set "_qaac_profile=--he"
+)
+
+:check_stereo_mode
+rem --- MKV出力時の3Dステレオメタデータ付与の選択 ---
+if /i "%_output_ext%"=="mkv" (
+    echo.
+    choice /m "MKV出力時、映像に3Dステレオメタデータ (-metadata:s:v:0 stereo_mode=1) を付与するか？"
+    if !errorlevel!==1 (
+        set "_add_stereo_mode=yes"
+        echo メタデータを付与する設定にしたぞ。
+    ) else (
+        set "_add_stereo_mode=no"
+    )
+) else (
+    set "_add_stereo_mode=no"
 )
 
 goto :eof
@@ -244,7 +260,8 @@ goto :build_audio_copy
 
 
 :build_all_streams
-    set "ffmpeg_maps=-map 0"
+    rem MKVでデータストリームエラーになるのを防ぐため、-dn (データ破棄) を指定するぞ
+    set "ffmpeg_maps=-map 0 -dn"
     if /i "%_all_streams_audio_mode%"=="flac" (
         set "ffmpeg_codecs=-c copy -c:a flac"
     ) else (
@@ -292,6 +309,13 @@ goto :build_audio_copy
 
 
 :build_end
+rem --- ステレオメタデータの付与判定 ---
+if "%_add_stereo_mode%"=="yes" (
+    if /i "%output_ext%"=="mkv" (
+        set "ffmpeg_codecs=%ffmpeg_codecs% -metadata:s:v:0 stereo_mode=1"
+    )
+)
+
 rem --- ffmpegの実行 ---
 echo     - 映像と音声を結合中...
 ffmpeg -hide_banner -y %ffmpeg_inputs% %ffmpeg_maps% %ffmpeg_codecs% -map_chapters -1 "%output_file%"
@@ -378,6 +402,7 @@ echo   - 出力拡張子選択 (mp4/m4v/mkv/mov/webm/任意)
 echo   - 出力先選択 (入力フォルダ / %%USERPROFILE%%\Downloads)
 echo   - ストリーム保持時: 音声コピー or 全音声FLAC変換(自動でMKV)
 echo   - ストリーム個別処理: copy/PCM/QAAC/FLAC^+MKV
+echo   - MKV出力時: 3Dステレオメタデータ(stereo_mode=1)の付与選択
 echo   - 元ファイル削除の有無
 echo.
 echo [前提]
