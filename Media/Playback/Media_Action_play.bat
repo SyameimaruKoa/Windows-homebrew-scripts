@@ -19,9 +19,48 @@ set AF_OPTION=
 set /p USER_AF="音声フィルター (-af) > "
 if not "%USER_AF%"=="" set AF_OPTION=-af "%USER_AF%"
 
-set VF_OPTION=
+set USER_VF=
 set /p USER_VF="動画フィルター (-vf) > "
-if not "%USER_VF%"=="" set VF_OPTION=-vf "%USER_VF%"
+
+echo.
+echo -------------------------------------------------
+echo 再生モードを選択するのじゃ：
+echo   [1] 画面からはみ出さないように調整するモード (デフォルト)
+echo   [2] ウィンドウサイズを1280x720の大きい辺に合わせるモード
+echo   [3] 従来通りのドットバイドットモード
+echo -------------------------------------------------
+set PLAY_MODE=1
+set /p PLAY_MODE="モード選択 (1-3) > "
+
+set "AUTO_SCALE="
+if "%PLAY_MODE%"=="1" goto :mode_fit_screen
+if "%PLAY_MODE%"=="2" goto :mode_scale_1280
+goto :mode_done
+
+:mode_fit_screen
+set SCREEN_W=1920
+set SCREEN_H=1080
+for /f "tokens=1,2 delims=," %%A in ('powershell -Command "Add-Type -AssemblyName System.Windows.Forms; $wa = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea; '{0},{1}' -f $wa.Width, $wa.Height"') do (
+    set SCREEN_W=%%A
+    set SCREEN_H=%%B
+)
+set /a MAX_W=SCREEN_W - 40
+set /a MAX_H=SCREEN_H - 80
+set "AUTO_SCALE=scale='min(%MAX_W%,iw)':'min(%MAX_H%,ih)':force_original_aspect_ratio=decrease"
+goto :mode_done
+
+:mode_scale_1280
+set "AUTO_SCALE=scale='if(gte(iw/ih,16/9),1280,-2)':'if(gte(iw/ih,16/9),-2,720)'"
+goto :mode_done
+
+:mode_done
+set "COMBINED_VF=%AUTO_SCALE%"
+if "%COMBINED_VF%"=="" set "COMBINED_VF=%USER_VF%" & goto :skip_combine
+if not "%USER_VF%"=="" set "COMBINED_VF=%AUTO_SCALE%,%USER_VF%"
+:skip_combine
+
+set VF_OPTION=
+if not "%COMBINED_VF%"=="" set VF_OPTION=-vf "%COMBINED_VF%"
 
 echo.
 echo -------------------------------------------------
