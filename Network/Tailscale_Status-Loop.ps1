@@ -117,6 +117,16 @@ Write-Host "------------------------------------------------------------" -Foreg
 Start-Sleep -Seconds 2
 Clear-Host # 最初に一度だけ画面をきれいにする
 
+# --- バイト数を人間にやさしい単位にフォーマットする関数 ---
+function Format-Bytes {
+    param([long]$Bytes)
+    if ($Bytes -ge 1TB) { return '{0:N2} TB' -f ($Bytes / 1TB) }
+    if ($Bytes -ge 1GB) { return '{0:N2} GB' -f ($Bytes / 1GB) }
+    if ($Bytes -ge 1MB) { return '{0:N2} MB' -f ($Bytes / 1MB) }
+    if ($Bytes -ge 1KB) { return '{0:N2} KB' -f ($Bytes / 1KB) }
+    return "$Bytes B"
+}
+
 # --- statusループ (ちらつき対策・整列・残像除去版) ---
 while ($true) {
     # 現在のウィンドウ幅を取得（パディング計算用）
@@ -142,6 +152,14 @@ while ($true) {
             $hostName = $parts[1]
             $os = $parts[3] # Email($parts[2])をスキップ
             $status = $parts[4..($parts.Length - 1)] -join ' '
+
+            # tx/rx のバイト数を読みやすい単位に変換
+            $status = [regex]::Replace($status, '\b(tx|rx)\s+(\d+)\b', {
+                param($m)
+                $label = $m.Groups[1].Value
+                $bytes = [long]$m.Groups[2].Value
+                "$label $(Format-Bytes $bytes)"
+            })
             
             # 固定幅フォーマットを作成
             $line = "{0,-16} {1,-25} {2,-8} {3}" -f $ip, $hostName, $os, $status
