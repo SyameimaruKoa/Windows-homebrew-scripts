@@ -35,13 +35,6 @@ function Invoke-SelfElevation {
         [string[]]$ArgumentList
     )
 
-    $sudoCommand = Get-Command sudo -ErrorAction SilentlyContinue
-    if ($sudoCommand) {
-        $allArgs = @('powershell.exe') + $ArgumentList
-        & $sudoCommand @allArgs
-        exit
-    }
-
     $gsudoCommand = Get-Command gsudo -ErrorAction SilentlyContinue
     if ($gsudoCommand) {
         $allArgs = @('powershell.exe') + $ArgumentList
@@ -49,7 +42,7 @@ function Invoke-SelfElevation {
         exit
     }
 
-    Start-Process powershell.exe -ArgumentList $ArgumentList -Verb RunAs
+    Start-Process powershell.exe -ArgumentList (@('-NoExit') + $ArgumentList) -Verb RunAs
     exit
 }
 
@@ -88,14 +81,30 @@ tailscale status | ForEach-Object {
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 
-# --- ユーザーからのIPアドレス入力 ---
-$target_ip = Read-Host -Prompt "Pingを送るデバイスのIPアドレスを入力せい"
-
-# --- 入力値のチェック ---
-if ([string]::IsNullOrWhiteSpace($target_ip)) {
-    Write-Host "IPアドレスが入力されておらんではないか。やり直せ！" -ForegroundColor Red
+# --- ユーザーからのIPアドレス入力 (有効な入力があるまでループ) ---
+# stdin がリダイレクトされておったら対話入力は無理じゃ
+if ([Console]::IsInputRedirected) {
+    Write-Host "標準入力が利用できん環境で実行されておるぞ。" -ForegroundColor Red
+    Write-Host "PowerShellのターミナルから直接実行するか、-TargetIp引数で指定せい。" -ForegroundColor Red
+    Start-Sleep -Seconds 5
     exit 1
 }
+
+$target_ip = $null
+do {
+    Write-Host "Pingを送るデバイスのIPアドレスを入力せい: " -NoNewline -ForegroundColor Yellow
+    $target_ip = [Console]::ReadLine()
+    if ($null -eq $target_ip) {
+        # stdin が閉じられた
+        Write-Host ""
+        Write-Host "入力ストリームが閉じられたぞ。終了する。" -ForegroundColor Red
+        exit 1
+    }
+    $target_ip = $target_ip.Trim()
+    if ([string]::IsNullOrWhiteSpace($target_ip)) {
+        Write-Host "IPアドレスが入力されておらんではないか。やり直せ！" -ForegroundColor Red
+    }
+} while ([string]::IsNullOrWhiteSpace($target_ip))
 
 Write-Host ""
 Write-Host "------------------------------------------------------------" -ForegroundColor Cyan
