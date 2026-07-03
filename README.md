@@ -60,10 +60,11 @@ Mobile/         Android・サイドロード
 
 ### Media/Image — 画像処理
 
-| ファイル                                                               | 説明                                |
-| ---------------------------------------------------------------------- | ----------------------------------- |
-| [Image_Upscale_waifu2x.bat](Media/Image/Image_Upscale_waifu2x.bat)     | waifu2x でアップスケール            |
-| [Image_Convert_screenshot.sh](Media/Image/Image_Convert_screenshot.sh) | PNG→WebP 一括変換（WSL/Linux 向け） |
+| ファイル                                                               | 説明                                                 |
+| ---------------------------------------------------------------------- | ---------------------------------------------------- |
+| [Image_Convert_screenshot.sh](Media/Image/Image_Convert_screenshot.sh) | PNG→WebP 一括変換（WSL/Linux 向け）                  |
+| [Image_Convert_to-webp.bat](Media/Image/Image_Convert_to-webp.bat)     | nconvert を利用した PNG→ロスレス WebP 変換（再帰的） |
+| [Image_Upscale_waifu2x.bat](Media/Image/Image_Upscale_waifu2x.bat)     | waifu2x でアップスケール                            |
 
 ### Media/Playback — 再生・情報取得
 
@@ -142,6 +143,7 @@ Mobile/         Android・サイドロード
 | qaac64                | AAC 変換                   |
 | tsMuxeR               | TS/M2TS 関連               |
 | waifu2x               | 画像アップスケール         |
+| nconvert              | 画像フォーマット変換       |
 | scrcpy / ADB          | Android ミラーリング       |
 | AltServer / SideStore | サイドロード関連           |
 | Tailscale CLI         | VPN ネットワーク関連       |
