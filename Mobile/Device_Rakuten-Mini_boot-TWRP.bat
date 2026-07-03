@@ -16,8 +16,16 @@ echo ブートローダーに再起動するよ
 adb reboot bootloader
 
 :twrpboot
+echo 圧縮されたTWRPを展開するから待つのじゃ...
+7z x "%~dp0TWRP-3.4.0-1_C330.img.zst" -o"%TEMP%" -y >nul
+if errorlevel 1 (
+    echo エラー：展開に失敗したのじゃ。7zコマンドが使える状態か確認するのじゃ。
+    pause
+    exit /b
+)
 echo TWRPを起動するよ
-fastboot boot "C:\Users\kouki\OneDrive\バッチ_バックアップ設定\TWRP-3.4.0-1_C330.img"
+fastboot boot "%TEMP%\TWRP-3.4.0-1_C330.img"
+del "%TEMP%\TWRP-3.4.0-1_C330.img"
 exit
 
 :bootloaderonly
