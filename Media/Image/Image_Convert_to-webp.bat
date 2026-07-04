@@ -15,7 +15,7 @@ if not exist "%TARGET_DIR%\" (
 
 for /R "%TARGET_DIR%" %%I in (*.png) do (
     echo •ÏŠ·’†: "%%I"
-    nconvert -out webp -q -1 -keep_exif -keep_iptc -keep_icc -keep_xmp -keepfiledate "%%I"
+    nconvert -out webp -q -1 -keep_icc -keepfiledate "%%I"
     if exist "%%~dpnI.webp" (
         del "%%I"
     ) else (
