@@ -2,6 +2,9 @@
 chcp 932 >nul
 rem 下にヘルプがあるのじゃ
 
+rem XnView MPのインストール先にあるnconvert.exeをフルパスで指定するのじゃ
+set "NCONVERT_EXE=C:\Program Files\XnViewMP\nconvert.exe"
+
 if "%~1"=="" goto show_help
 if "%~1"=="-h" goto show_help
 if "%~1"=="--help" goto show_help
@@ -13,15 +16,14 @@ if not exist "%TARGET_DIR%\" (
     exit /b 1
 )
 
-for /R "%TARGET_DIR%" %%I in (*.png) do (
-    echo 変換中: "%%I"
-    nconvert -out webp -q -1 -keep_icc -keepfiledate "%%I"
-    if exist "%%~dpnI.webp" (
-        del "%%I"
-    ) else (
-        echo 変換に失敗したようじゃ: "%%I"
-    )
+if not exist "%NCONVERT_EXE%" (
+    echo エラー: nconvert.exe が見つからんぞ！
+    echo バッチファイル内の NCONVERT_EXE のパスを自分の環境に合わせて書き直すのじゃ！
+    pause
+    exit /b 1
 )
+
+"%NCONVERT_EXE%" -quiet -out webp -q -1 -keep_icc -keepfiledate -D -recurse "%TARGET_DIR%\*.png"
 
 echo すべての処理が終わったのじゃ。
 pause
@@ -41,8 +43,10 @@ echo -h, --help    このヘルプを表示するのじゃ。
 echo.
 echo [動作]
 echo ・指定されたフォルダ内のすべてのPNGファイルを再帰的にWebPに変換する。
-echo ・nconvertを使ってロスレス（-q -1）で変換し、メタデータや更新日時を引き継ぐ。
-echo ・変換が無事に完了したことを確認してから、元のPNGファイルを削除するのじゃ。
+echo ・nconvertの-recurse機能で一括入力するため、処理が非常に高速じゃ。
+echo ・-quietで無駄なログを出さず、-Dで変換後の元ファイルを自動削除するのじゃ。
+echo ・XnView MPのnconvertを直接呼び出し、確実にWebPプラグインを読み込ませるのじゃ。
+echo ・nconvertを使ってロスレス（-q -1）で変換し、ICCと更新日時を引き継ぐ。
 echo ・フォルダ構成はそのまま維持されるのじゃ。
 echo.
 pause
