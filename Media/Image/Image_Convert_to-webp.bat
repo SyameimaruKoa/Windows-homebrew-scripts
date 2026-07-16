@@ -3,7 +3,7 @@ chcp 932 >nul
 rem 下にヘルプがあるのじゃ
 
 rem XnView MPのインストール先にあるnconvert.exeをフルパスで指定するのじゃ
-set "NCONVERT_EXE=C:\Program Files\XnViewMP\nconvert.exe"
+set "NCONVERT_EXE=C:\Users\kouki\OneDrive\CUIApplication\NConvert\nconvert.exe"
 
 if "%~1"=="" goto show_help
 if "%~1"=="-h" goto show_help
