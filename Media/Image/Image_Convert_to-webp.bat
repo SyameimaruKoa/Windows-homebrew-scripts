@@ -26,7 +26,14 @@ if not exist "%NCONVERT_EXE%" (
 echo 実行場所: %CD%
 echo 対象フォルダ: %TARGET_DIR%
 echo WebPに変換中じゃ。しばらくお待ちくだされ...
-"%NCONVERT_EXE%" -v -out webp -q -1 -keep_icc -keepfiledate -D -recurse "%TARGET_DIR%\*.png"
+for /R "%TARGET_DIR%" %%i in (*.png) do (
+    "%NCONVERT_EXE%" -quiet -out webp -q -1 -keep_icc -keepfiledate -D "%%i"
+    if errorlevel 1 (
+        echo [ERROR] %%i
+    ) else (
+        echo Conversion of %%i into %%~dpni.webp OK
+    )
+)
 
 echo すべての処理が終わったのじゃ。
 pause
@@ -46,7 +53,7 @@ echo -h, --help    このヘルプを表示するのじゃ。
 echo.
 echo [動作]
 echo ・指定されたフォルダ内のすべてのPNGファイルを再帰的にWebPに変換する。
-echo ・nconvertの-recurse機能で一括入力するため、処理が非常に高速じゃ。
+echo ・FOR /R ループを使用し、サブフォルダも処理されます。
 echo ・-vで各ファイルの詳細情報（解像度等）を出力し、-Dで変換後の元ファイルを自動削除するのじゃ。
 echo ・XnView MPのnconvertを直接呼び出し、確実にWebPプラグインを読み込ませるのじゃ。
 echo ・nconvertを使ってロスレス（-q -1）で変換し、ICCと更新日時を引き継ぐ。
