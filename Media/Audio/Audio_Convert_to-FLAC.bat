@@ -64,7 +64,7 @@ exit
 
 
 :cut1
-start "" "C:\Users\kouki\OneDrive\PortableApps\LosslessCutPortable\LosslessCutPortable.exe" %1 > nul
+start "" "C:\Users\kouki\OneDrive\PortableApps\LosslessCutPortable\LosslessCutPortableFast.bat" %1 > nul
 echo LosslessCutを使いカットしたいタイムコードを特定してください
 echo (エンドは実際には1フレ後ろになります)
 echo （書き方 00:00:00.000）
@@ -81,7 +81,7 @@ goto cutbach1
 exit
 
 :cut2
-start "" "C:\Users\kouki\OneDrive\PortableApps\LosslessCutPortable\LosslessCutPortable.exe" %1 > nul
+start "" "C:\Users\kouki\OneDrive\PortableApps\LosslessCutPortable\LosslessCutPortableFast.bat" %1 > nul
 echo LosslessCutを使いカットしたいタイムコードを特定してください
 echo (エンドは実際には1フレ後ろになります)
 echo （書き方 00:00:00.000）
