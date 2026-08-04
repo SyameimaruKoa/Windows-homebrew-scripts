@@ -366,6 +366,11 @@ if errorlevel 1 (
         set "_error_occurred=1"
     ) else (
         echo    - 処理成功: "!final_output!"
+        if "%_session_mpd_mode%"=="yes" (
+            rem session.mpdの日付を出力ファイルに引き継ぐ
+            powershell -NoProfile -Command "$s = Get-Item -LiteralPath $env:input_file; $d = Get-Item -LiteralPath $env:final_output; $d.LastWriteTime = $s.LastWriteTime; $d.CreationTime = $s.CreationTime" >nul 2>&1
+            echo    - session.mpdの日付を継承したぞ。
+        )
     )
     rem =================================================================
     rem ★★★ 変更箇所はここまで ★★★
