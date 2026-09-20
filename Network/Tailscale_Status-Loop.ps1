@@ -672,6 +672,18 @@ function Write-Frame {
     $frameArray = @($Frame)
 
     try {
+        $windowHeight = $Host.UI.RawUI.WindowSize.Height
+        $maxVisibleLines = [math]::Max(1, $windowHeight - 1)
+    }
+    catch {
+        $maxVisibleLines = [math]::Max(1, $script:PreviousFrameLineCount)
+    }
+
+    # 端末をスクロールさせないため、最下段は空けて上側だけを描画するのじゃ。
+    $visibleFrameCount = [math]::Min($frameArray.Count, $maxVisibleLines)
+    $visibleFrame = @($frameArray | Select-Object -First $visibleFrameCount)
+
+    try {
         $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates(0, 0)
     }
     catch {
@@ -680,7 +692,7 @@ function Write-Frame {
 
     $currentLine = 0
 
-    foreach ($entry in $frameArray) {
+    foreach ($entry in $visibleFrame) {
         $text = Limit-Text -Text ([string]$entry.Text) -Width $width
         $padded = $text.PadRight($width)
 
@@ -694,12 +706,14 @@ function Write-Frame {
         $currentLine++
     }
 
-    while ($currentLine -lt $script:PreviousFrameLineCount) {
+    $previousVisibleLines = [math]::Min($script:PreviousFrameLineCount, $maxVisibleLines)
+
+    while ($currentLine -lt $previousVisibleLines) {
         Write-Host (' ' * $width)
         $currentLine++
     }
 
-    $script:PreviousFrameLineCount = $frameArray.Count
+    $script:PreviousFrameLineCount = $visibleFrameCount
 }
 
 function New-Frame {
