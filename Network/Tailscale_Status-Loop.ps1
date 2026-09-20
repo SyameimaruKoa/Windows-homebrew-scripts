@@ -693,7 +693,7 @@ function New-Frame {
     $selfIPv4 = Get-IPv4Address -Value $self.TailscaleIPs
     $selfIPv6 = Get-IPv6Address -Value $self.TailscaleIPs
 
-$netcheck = Get-NetcheckJson
+    $netcheck = Get-NetcheckJson
     $localIPv6Status = Get-LocalIPv6Status -Netcheck $netcheck
 
     $title = "[{0}] Tailscale Status :: {1}" -f $now.ToString('yyyy-MM-dd HH:mm:ss'), $selfName
