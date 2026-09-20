@@ -81,6 +81,38 @@ $script:PreviousStatsTimestamp = $null
 #endregion
 
 #region FORMAT
+function Format-BitsPerSecond {
+    param(
+        [AllowNull()]
+        [object]$BitsPerSecond
+    )
+
+    if ($null -eq $BitsPerSecond) {
+        return '-'
+    }
+
+    try {
+        [double]$value = $BitsPerSecond
+    }
+    catch {
+        return '-'
+    }
+
+    if ($value -ge 1Gb) {
+        return '{0:N2} Gbit/s' -f ($value / 1Gb)
+    }
+
+    if ($value -ge 1Mb) {
+        return '{0:N2} Mbit/s' -f ($value / 1Mb)
+    }
+
+    if ($value -ge 1Kb) {
+        return '{0:N2} Kbit/s' -f ($value / 1Kb)
+    }
+
+    return '{0:N0} bit/s' -f $value
+}
+
 function Format-ShortDateTime {
     param(
         [AllowNull()]
