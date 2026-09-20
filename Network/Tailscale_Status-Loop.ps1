@@ -16,8 +16,7 @@
       - Online / Active / Direct / DERP / Peer Relay / SubnetRoutes / ExitCandidates の集計
       - Peer ごとの Online / Active / 接続経路
       - Peer ごとの Tailscale IPv4 アドレス
-      - Peer ごとのグローバル IPv6 エンドポイント検出状況
-      - RX / TX 通信量
+      - Peer ごとの RX / TX 通信速度（bit/s）
       - ネットワークマップ / MagicSock / WireGuard Engine の不整合
 
     G6 はローカルノードの `tailscale netcheck --format=json` の GlobalV6 を使って
@@ -77,45 +76,11 @@ if ($Help) {
 
 $ErrorActionPreference = 'Stop'
 $script:PreviousFrameLineCount = 0
+$script:PreviousStats = @{}
+$script:PreviousStatsTimestamp = $null
 #endregion
 
 #region FORMAT
-function Format-Bytes {
-    param(
-        [AllowNull()]
-        [object]$Bytes
-    )
-
-    if ($null -eq $Bytes) {
-        return '-'
-    }
-
-    try {
-        [double]$value = $Bytes
-    }
-    catch {
-        return '-'
-    }
-
-    if ($value -ge 1TB) {
-        return '{0:N2} TB' -f ($value / 1TB)
-    }
-
-    if ($value -ge 1GB) {
-        return '{0:N2} GB' -f ($value / 1GB)
-    }
-
-    if ($value -ge 1MB) {
-        return '{0:N2} MB' -f ($value / 1MB)
-    }
-
-    if ($value -ge 1KB) {
-        return '{0:N2} KB' -f ($value / 1KB)
-    }
-
-    return '{0:N0} B' -f $value
-}
-
 function Format-ShortDateTime {
     param(
         [AllowNull()]
@@ -501,72 +466,6 @@ function Get-LocalIPv6Status {
     return 'G6 NO'
 }
 
-function Test-GlobalIPv6Address {
-    param(
-        [AllowNull()]
-        [string]$Address
-    )
-
-    if ([string]::IsNullOrWhiteSpace($Address)) {
-        return $false
-    }
-
-    try {
-        $parsed = [System.Net.IPAddress]::Parse($Address)
-
-        if ($parsed.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetworkV6) {
-            return $false
-        }
-
-        $bytes = $parsed.GetAddressBytes()
-        return (($bytes[0] -band 0xE0) -eq 0x20)
-    }
-    catch {
-        return $false
-    }
-}
-
-function Test-GlobalIPv6Endpoint {
-    param(
-        [AllowNull()]
-        [object]$Value
-    )
-
-    foreach ($endpoint in (Get-StringArray $Value)) {
-        $address = $null
-
-        if ($endpoint -match '^\[(?<address>[0-9A-Fa-f:]+)\](?::\d+)?$') {
-            $address = $Matches['address']
-        }
-        elseif ($endpoint -match '^(?<address>[0-9A-Fa-f:]+)$') {
-            $address = $Matches['address']
-        }
-
-        if (Test-GlobalIPv6Address -Address $address) {
-            return $true
-        }
-    }
-
-    return $false
-}
-
-function Get-GlobalIPv6Status {
-    param(
-        [Parameter(Mandatory)]
-        [object]$Peer
-    )
-
-    if (Test-GlobalIPv6Endpoint -Value $Peer.Addrs) {
-        return 'YES'
-    }
-
-    if (Test-GlobalIPv6Endpoint -Value $Peer.CurAddr) {
-        return 'YES'
-    }
-
-    return '-'
-}
-
 function Get-PeerDisplayName {
     param(
         [Parameter(Mandatory)]
@@ -585,6 +484,25 @@ function Get-PeerDisplayName {
     }
 
     return '(unknown)'
+}
+
+function Get-PeerRateKey {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Peer
+    )
+
+    $nodeId = [string]$Peer.NodeID
+    if (-not [string]::IsNullOrWhiteSpace($nodeId)) {
+        return "node:$nodeId"
+    }
+
+    $publicKey = [string]$Peer.PublicKey
+    if (-not [string]::IsNullOrWhiteSpace($publicKey)) {
+        return "key:$publicKey"
+    }
+
+    return "name:$(Get-PeerDisplayName -Peer $Peer)"
 }
 
 function Get-PeerSortOrder {
@@ -700,6 +618,14 @@ function New-Frame {
     $frame = [System.Collections.Generic.List[object]]::new()
 
     $now = Get-Date
+    $sampleTime = [DateTimeOffset]::UtcNow
+    $sampleElapsedSeconds = 0.0
+
+    if ($null -ne $script:PreviousStatsTimestamp) {
+        $sampleElapsedSeconds = ($sampleTime - $script:PreviousStatsTimestamp).TotalSeconds
+    }
+
+    $currentStats = @{}
     $self = $Status.Self
     $peers = @(Get-PeerObjects -Status $Status)
 
@@ -769,9 +695,8 @@ $netcheck = Get-NetcheckJson
         @{ Name = 'HOST';   Width = 22 }
         @{ Name = 'OS';     Width = 7 }
         @{ Name = 'IP';     Width = 15 }
-        @{ Name = 'G6';     Width = 4 }
-        @{ Name = 'RX';     Width = 10 }
-        @{ Name = 'TX';     Width = 10 }
+        @{ Name = 'RX/s';   Width = 12 }
+        @{ Name = 'TX/s';   Width = 12 }
 
         @{ Name = 'DIAG';   Width = 12 }
     )
@@ -784,7 +709,8 @@ $netcheck = Get-NetcheckJson
             @{ Name = 'HOST';   Width = 20 }
             @{ Name = 'OS';     Width = 7 }
             @{ Name = 'IP';     Width = 15 }
-            @{ Name = 'G6';     Width = 4 }
+            @{ Name = 'RX/s';   Width = 12 }
+            @{ Name = 'TX/s';   Width = 12 }
             @{ Name = 'LAST';   Width = 16 }
             @{ Name = 'DIAG';   Width = 12 }
         )
@@ -820,10 +746,34 @@ $netcheck = Get-NetcheckJson
         $hostName = Get-PeerDisplayName -Peer $peer
         $os = [string]$peer.OS
         $ip = Get-IPv4Address -Value $peer.TailscaleIPs
-        $globalIPv6 = Get-GlobalIPv6Status -Peer $peer
-        $rx = Format-Bytes -Bytes $peer.RxBytes
-        $tx = Format-Bytes -Bytes $peer.TxBytes
         $diag = Get-DiagnosticFlags -Peer $peer
+
+        $rateKey = Get-PeerRateKey -Peer $peer
+        $currentRxBytes = [double]$peer.RxBytes
+        $currentTxBytes = [double]$peer.TxBytes
+
+        $rxBitsPerSecond = $null
+        $txBitsPerSecond = $null
+
+        if ($sampleElapsedSeconds -gt 0 -and $script:PreviousStats.ContainsKey($rateKey)) {
+            $previous = $script:PreviousStats[$rateKey]
+
+            if ($currentRxBytes -ge $previous.RxBytes) {
+                $rxBitsPerSecond = (($currentRxBytes - $previous.RxBytes) * 8) / $sampleElapsedSeconds
+            }
+
+            if ($currentTxBytes -ge $previous.TxBytes) {
+                $txBitsPerSecond = (($currentTxBytes - $previous.TxBytes) * 8) / $sampleElapsedSeconds
+            }
+        }
+
+        $rxRate = Format-BitsPerSecond -BitsPerSecond $rxBitsPerSecond
+        $txRate = Format-BitsPerSecond -BitsPerSecond $txBitsPerSecond
+
+        $currentStats[$rateKey] = [pscustomobject]@{
+            RxBytes = $currentRxBytes
+            TxBytes = $currentTxBytes
+        }
 
         if ($Detail) {
             $last = '-'
@@ -842,7 +792,8 @@ $netcheck = Get-NetcheckJson
                 (Format-Cell -Text $hostName -Width 20),
                 (Format-Cell -Text $os -Width 7),
                 (Format-Cell -Text $ip -Width 15),
-                (Format-Cell -Text $globalIPv6 -Width 4),
+                (Format-Cell -Text $rxRate -Width 12),
+                (Format-Cell -Text $txRate -Width 12),
                 (Format-Cell -Text $last -Width 16),
                 (Format-Cell -Text $diag -Width 12)
             )
@@ -855,9 +806,8 @@ $netcheck = Get-NetcheckJson
                 (Format-Cell -Text $hostName -Width 22),
                 (Format-Cell -Text $os -Width 7),
                 (Format-Cell -Text $ip -Width 15),
-                (Format-Cell -Text $globalIPv6 -Width 4),
-                (Format-Cell -Text $rx -Width 10),
-                (Format-Cell -Text $tx -Width 10),
+                (Format-Cell -Text $rxRate -Width 12),
+                (Format-Cell -Text $txRate -Width 12),
                 (Format-Cell -Text $diag -Width 12)
             )
         }
@@ -895,6 +845,9 @@ $netcheck = Get-NetcheckJson
         Color = 'Cyan'
     })
 
+    $script:PreviousStats = $currentStats
+    $script:PreviousStatsTimestamp = $sampleTime
+
     return $frame
 }
 #endregion
@@ -928,6 +881,8 @@ while ($true) {
         }
 
         $script:PreviousFrameLineCount = [math]::Max(1, $script:PreviousFrameLineCount)
+        $script:PreviousStats = @{}
+        $script:PreviousStatsTimestamp = $null
     }
 
     $nextUpdate = $nextUpdate.AddSeconds($Interval)
