@@ -1,4 +1,4 @@
-#region HELP
+﻿#region HELP
 <#
 .SYNOPSIS
     Tailscale の接続状態を JSON ベースで定期表示するのじゃ。
