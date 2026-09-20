@@ -409,23 +409,40 @@ function Get-DiagnosticFlags {
 }
 
 function Get-NetcheckJson {
-    $raw = & tailscale netcheck --format=json 2>&1
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $process.StartInfo.FileName = 'tailscale.exe'
+    $process.StartInfo.Arguments = 'netcheck --format=json'
+    $process.StartInfo.UseShellExecute = $false
+    $process.StartInfo.CreateNoWindow = $true
+    $process.StartInfo.RedirectStandardOutput = $true
+    $process.StartInfo.RedirectStandardError = $true
 
-    if ($LASTEXITCODE -ne 0) {
-        $message = ($raw | Out-String).Trim()
+    try {
+        if (-not $process.Start()) {
+            throw 'tailscale netcheck --format=json を起動できなかったのじゃ。'
+        }
+
+        $stdout = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+        $exitCode = $process.ExitCode
+    }
+    finally {
+        $process.Dispose()
+    }
+
+    if ($exitCode -ne 0) {
+        $message = $stderr.Trim()
 
         if ([string]::IsNullOrWhiteSpace($message)) {
-            $message = "tailscale netcheck --format=json が終了コード $LASTEXITCODE で失敗したのじゃ。"
+            $message = "tailscale netcheck --format=json が終了コード $exitCode で失敗したのじゃ。"
         }
 
         throw $message
     }
 
-    if ($null -eq $raw) {
-        throw 'tailscale netcheck --format=json が何も返さなかったのじゃ。'
-    }
-
-    $jsonText = ($raw | Out-String).Trim()
+    $jsonText = $stdout.Trim()
 
     if ([string]::IsNullOrWhiteSpace($jsonText)) {
         throw 'tailscale netcheck --format=json が空の JSON を返したのじゃ。'
