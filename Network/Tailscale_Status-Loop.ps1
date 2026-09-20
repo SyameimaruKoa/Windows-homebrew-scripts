@@ -379,6 +379,27 @@ function Get-PathDisplay {
     }
 }
 
+function Get-CommunicationAddress {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Peer
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$Peer.CurAddr)) {
+        return [string]$Peer.CurAddr
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$Peer.PeerRelay)) {
+        return [string]$Peer.PeerRelay
+    }
+
+    if ($Peer.Active -and -not [string]::IsNullOrWhiteSpace([string]$Peer.Relay)) {
+        return "DERP:$([string]$Peer.Relay)"
+    }
+
+    return '-'
+}
+
 function Get-DiagnosticFlags {
     param(
         [Parameter(Mandatory)]
