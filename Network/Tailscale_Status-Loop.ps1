@@ -20,8 +20,10 @@
       - RX / TX 通信量
       - ネットワークマップ / MagicSock / WireGuard Engine の不整合
 
-    G6 は Peer の Addrs または CurAddr に IPv6 グローバルユニキャスト
-    (2000::/3) が存在する場合に YES と表示するのじゃ。
+    G6 は以下の意味で表示するのじゃ。
+      - YES: 現在確認できるグローバル IPv6 エンドポイントあり
+      - NO: 取得できた Addrs にグローバル IPv6 なし
+      - ?: status --json だけでは判定できない
 
 .PARAMETER Interval
     ステータスを更新する間隔を秒単位で指定するのじゃ。
@@ -342,19 +344,19 @@ function Get-PathType {
         return 'OFFLINE'
     }
 
-    if (-not [string]::IsNullOrWhiteSpace([string]$Peer.PeerRelay)) {
-        return 'PEER'
-    }
-
     if (-not [string]::IsNullOrWhiteSpace([string]$Peer.CurAddr)) {
         return 'DIRECT'
     }
 
-    if (-not [string]::IsNullOrWhiteSpace([string]$Peer.Relay)) {
+    if (-not [string]::IsNullOrWhiteSpace([string]$Peer.PeerRelay)) {
+        return 'PEER'
+    }
+
+    if ($Peer.Active -and -not [string]::IsNullOrWhiteSpace([string]$Peer.Relay)) {
         return 'DERP'
     }
 
-    return '-'
+    return 'IDLE'
 }
 
 function Get-PathDisplay {
@@ -363,30 +365,19 @@ function Get-PathDisplay {
         [object]$Peer
     )
 
-    $pathType = Get-PathType -Peer $Peer
-
-    switch ($pathType) {
-        'DIRECT' {
-            return 'DIRECT'
-        }
-        'PEER' {
-            return 'PEER-RELAY'
-        }
+    switch (Get-PathType -Peer $Peer) {
+        'DIRECT' { return 'DIRECT' }
+        'PEER' { return 'PEER-RELAY' }
         'DERP' {
             $relay = [string]$Peer.Relay
-
             if ([string]::IsNullOrWhiteSpace($relay)) {
                 return 'DERP'
             }
-
             return "DERP($relay)"
         }
-        'OFFLINE' {
-            return 'OFFLINE'
-        }
-        default {
-            return '-'
-        }
+        'OFFLINE' { return 'OFFLINE' }
+        'IDLE' { return 'IDLE' }
+        default { return '-' }
     }
 }
 
@@ -398,16 +389,18 @@ function Get-DiagnosticFlags {
 
     $flags = [System.Collections.Generic.List[string]]::new()
 
-    if (-not $Peer.InNetworkMap) {
-        [void]$flags.Add('!MAP')
-    }
+    if ($Peer.Online -and $Peer.Active) {
+        if (-not $Peer.InNetworkMap) {
+            [void]$flags.Add('!MAP')
+        }
 
-    if (-not $Peer.InMagicSock) {
-        [void]$flags.Add('!MAGIC')
-    }
+        if (-not $Peer.InMagicSock) {
+            [void]$flags.Add('!MAGIC')
+        }
 
-    if (-not $Peer.InEngine) {
-        [void]$flags.Add('!ENGINE')
+        if (-not $Peer.InEngine) {
+            [void]$flags.Add('!ENGINE')
+        }
     }
 
     if ($Peer.Expired) {
@@ -466,18 +459,52 @@ function Test-GlobalIPv6Endpoint {
     return $false
 }
 
+function Test-EndpointListPresent {
+    param(
+        [AllowNull()]
+        [object]$Value
+    )
+
+    return ((Get-StringArray $Value).Count -gt 0)
+}
+
 function Get-GlobalIPv6Status {
     param(
         [Parameter(Mandatory)]
         [object]$Peer
     )
 
+    if (Test-GlobalIPv6Endpoint -Value $Peer.CurAddr) {
+        return 'YES'
+    }
+
     if (Test-GlobalIPv6Endpoint -Value $Peer.Addrs) {
         return 'YES'
     }
 
-    if (Test-GlobalIPv6Endpoint -Value $Peer.CurAddr) {
-        return 'YES'
+    if (Test-EndpointListPresent -Value $Peer.Addrs) {
+        return 'NO'
+    }
+
+    return '?'
+}
+
+function Get-CommunicationAddress {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Peer
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$Peer.CurAddr)) {
+        return [string]$Peer.CurAddr
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$Peer.PeerRelay)) {
+        return [string]$Peer.PeerRelay
+    }
+
+    if ($Peer.Active -and -not [string]::IsNullOrWhiteSpace([string]$Peer.Relay)) {
+        return "DERP:$($Peer.Relay)"
     }
 
     return '-'
@@ -642,6 +669,7 @@ function New-Frame {
     $directPeers = @($onlinePeers | Where-Object { (Get-PathType -Peer $_) -eq 'DIRECT' })
     $peerRelayPeers = @($onlinePeers | Where-Object { (Get-PathType -Peer $_) -eq 'PEER' })
     $relayPeers = @($onlinePeers | Where-Object { (Get-PathType -Peer $_) -eq 'DERP' })
+    $idlePeers = @($onlinePeers | Where-Object { (Get-PathType -Peer $_) -eq 'IDLE' })
     $routePeers = @($onlinePeers | Where-Object { @(Get-StringArray $_.PrimaryRoutes).Count -gt 0 })
     $exitPeers = @($onlinePeers | Where-Object { $_.ExitNodeOption })
     $selfName = Get-PeerDisplayName -Peer $self
@@ -652,13 +680,14 @@ function New-Frame {
     $line1 = "Local {0} | IPv4 {1} | IPv6 {2}" -f `
         $selfName, $selfIPv4, $selfIPv6
 
-    $line2 = "Peers {0}/{1} online | {2} active | Direct {3} | DERP {4} | PeerRelay {5} | SubnetRoutes {6} | ExitCandidates {7}" -f `
+    $line2 = "Peers {0}/{1} online | {2} active | Direct {3} | DERP {4} | PeerRelay {5} | Idle {6} | SubnetRoutes {7} | ExitCandidates {8}" -f `
         $onlinePeers.Count,
         $peers.Count,
         $activePeers.Count,
         $directPeers.Count,
         $relayPeers.Count,
         $peerRelayPeers.Count,
+        $idlePeers.Count,
         $routePeers.Count,
         $exitPeers.Count
 
@@ -674,6 +703,7 @@ function New-Frame {
     $columns = @(
         @{ Name = 'ST';     Width = 6 }
         @{ Name = 'PATH';   Width = 11 }
+        @{ Name = 'ADDR';   Width = 22 }
         @{ Name = 'HOST';   Width = 22 }
         @{ Name = 'OS';     Width = 7 }
         @{ Name = 'IP';   Width = 15 }
@@ -688,6 +718,7 @@ function New-Frame {
         $columns = @(
             @{ Name = 'ST';       Width = 6 }
             @{ Name = 'PATH';     Width = 11 }
+            @{ Name = 'ADDR';     Width = 22 }
             @{ Name = 'HOST';     Width = 20 }
             @{ Name = 'OS';       Width = 7 }
             @{ Name = 'IP';       Width = 15 }
@@ -725,6 +756,7 @@ function New-Frame {
         }
 
         $path = Get-PathDisplay -Peer $peer
+        $address = Get-CommunicationAddress -Peer $peer
         $hostName = Get-PeerDisplayName -Peer $peer
         $os = [string]$peer.OS
         $ip = Get-IPv4Address -Value $peer.TailscaleIPs
@@ -743,25 +775,15 @@ function New-Frame {
                 $last = Format-ShortDateTime -Value $peer.LastSeen
             }
 
-            $endpoint = [string]$peer.CurAddr
-
-            if ([string]::IsNullOrWhiteSpace($endpoint)) {
-                $endpoint = [string]$peer.PeerRelay
-            }
-
-            if ([string]::IsNullOrWhiteSpace($endpoint)) {
-                $endpoint = '-'
-            }
-
             $values = @(
                 (Format-Cell -Text $state -Width 6),
                 (Format-Cell -Text $path -Width 11),
+                (Format-Cell -Text $address -Width 22),
                 (Format-Cell -Text $hostName -Width 20),
                 (Format-Cell -Text $os -Width 7),
                 (Format-Cell -Text $ip -Width 15),
                 (Format-Cell -Text $globalIPv6 -Width 4),
                 (Format-Cell -Text $last -Width 16),
-                (Format-Cell -Text $endpoint -Width 20),
                 (Format-Cell -Text $diag -Width 12)
             )
         }
@@ -769,6 +791,7 @@ function New-Frame {
             $values = @(
                 (Format-Cell -Text $state -Width 6),
                 (Format-Cell -Text $path -Width 11),
+                (Format-Cell -Text $address -Width 22),
                 (Format-Cell -Text $hostName -Width 22),
                 (Format-Cell -Text $os -Width 7),
                 (Format-Cell -Text $ip -Width 15),
