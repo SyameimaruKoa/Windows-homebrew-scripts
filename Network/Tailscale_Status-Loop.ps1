@@ -24,8 +24,8 @@
     判定するのじゃ。現在の P2P 通信経路が IPv6 かどうかではないぞ。
 
 .PARAMETER Interval
-    ステータスを更新する間隔を秒単位で指定するのじゃ。
-    デフォルトは2秒じゃ。
+    ステータスを取得・表示する周期を秒単位で指定するのじゃ。
+    デフォルトは1秒じゃ。
 
 .PARAMETER OnlineOnly
     Offline の Peer を一覧から隠すのじゃ。
@@ -54,9 +54,9 @@
 #endregion
 
 param(
-    [Parameter(HelpMessage = "更新間隔を秒単位で指定します（デフォルト: 2）")]
+    [Parameter(HelpMessage = "取得・表示周期を秒単位で指定します（デフォルト: 1）")]
     [ValidateRange(1, 3600)]
-    [int]$Interval = 2,
+    [int]$Interval = 1,
 
     [Parameter(HelpMessage = "Offline の Peer を一覧から隠します")]
     [switch]$OnlineOnly,
@@ -831,6 +831,8 @@ $netcheck = Get-NetcheckJson
 #endregion
 
 #region MAIN
+$nextUpdate = [DateTime]::UtcNow
+
 while ($true) {
     try {
         $status = Get-TailscaleJson
@@ -859,6 +861,14 @@ while ($true) {
         $script:PreviousFrameLineCount = [math]::Max(1, $script:PreviousFrameLineCount)
     }
 
-    Start-Sleep -Seconds $Interval
+    $nextUpdate = $nextUpdate.AddSeconds($Interval)
+    $remainingMilliseconds = [math]::Round(($nextUpdate - [DateTime]::UtcNow).TotalMilliseconds)
+
+    if ($remainingMilliseconds -gt 0) {
+        Start-Sleep -Milliseconds $remainingMilliseconds
+    }
+    else {
+        $nextUpdate = [DateTime]::UtcNow
+    }
 }
 #endregion
