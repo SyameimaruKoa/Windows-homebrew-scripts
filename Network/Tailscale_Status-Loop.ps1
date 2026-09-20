@@ -501,6 +501,72 @@ function Get-LocalIPv6Status {
     return 'G6 NO'
 }
 
+function Test-GlobalIPv6Address {
+    param(
+        [AllowNull()]
+        [string]$Address
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Address)) {
+        return $false
+    }
+
+    try {
+        $parsed = [System.Net.IPAddress]::Parse($Address)
+
+        if ($parsed.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetworkV6) {
+            return $false
+        }
+
+        $bytes = $parsed.GetAddressBytes()
+        return (($bytes[0] -band 0xE0) -eq 0x20)
+    }
+    catch {
+        return $false
+    }
+}
+
+function Test-GlobalIPv6Endpoint {
+    param(
+        [AllowNull()]
+        [object]$Value
+    )
+
+    foreach ($endpoint in (Get-StringArray $Value)) {
+        $address = $null
+
+        if ($endpoint -match '^\[(?<address>[0-9A-Fa-f:]+)\](?::\d+)?$') {
+            $address = $Matches['address']
+        }
+        elseif ($endpoint -match '^(?<address>[0-9A-Fa-f:]+)$') {
+            $address = $Matches['address']
+        }
+
+        if (Test-GlobalIPv6Address -Address $address) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Get-GlobalIPv6Status {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Peer
+    )
+
+    if (Test-GlobalIPv6Endpoint -Value $Peer.Addrs) {
+        return 'YES'
+    }
+
+    if (Test-GlobalIPv6Endpoint -Value $Peer.CurAddr) {
+        return 'YES'
+    }
+
+    return '-'
+}
+
 function Get-PeerDisplayName {
     param(
         [Parameter(Mandatory)]
@@ -702,8 +768,9 @@ $netcheck = Get-NetcheckJson
         @{ Name = 'ADDR';   Width = 22 }
         @{ Name = 'HOST';   Width = 22 }
         @{ Name = 'OS';     Width = 7 }
-        @{ Name = 'IP';    Width = 15 }
-        @{ Name = 'RX';    Width = 10 }
+        @{ Name = 'IP';     Width = 15 }
+        @{ Name = 'G6';     Width = 4 }
+        @{ Name = 'RX';     Width = 10 }
         @{ Name = 'TX';     Width = 10 }
 
         @{ Name = 'DIAG';   Width = 12 }
@@ -711,16 +778,15 @@ $netcheck = Get-NetcheckJson
 
     if ($Detail) {
         $columns = @(
-            @{ Name = 'ST';       Width = 6 }
-            @{ Name = 'PATH';     Width = 11 }
-            @{ Name = 'ADDR';     Width = 22 }
-            @{ Name = 'HOST';     Width = 20 }
-            @{ Name = 'OS';       Width = 7 }
-            @{ Name = 'IP';       Width = 15 }
-            @{ Name = 'LAST';      Width = 16 }
-            @{ Name = 'ENDPOINT'; Width = 20 }
-
-            @{ Name = 'DIAG';     Width = 12 }
+            @{ Name = 'ST';     Width = 6 }
+            @{ Name = 'PATH';   Width = 11 }
+            @{ Name = 'ADDR';   Width = 22 }
+            @{ Name = 'HOST';   Width = 20 }
+            @{ Name = 'OS';     Width = 7 }
+            @{ Name = 'IP';     Width = 15 }
+            @{ Name = 'G6';     Width = 4 }
+            @{ Name = 'LAST';   Width = 16 }
+            @{ Name = 'DIAG';   Width = 12 }
         )
     }
 
@@ -754,6 +820,7 @@ $netcheck = Get-NetcheckJson
         $hostName = Get-PeerDisplayName -Peer $peer
         $os = [string]$peer.OS
         $ip = Get-IPv4Address -Value $peer.TailscaleIPs
+        $globalIPv6 = Get-GlobalIPv6Status -Peer $peer
         $rx = Format-Bytes -Bytes $peer.RxBytes
         $tx = Format-Bytes -Bytes $peer.TxBytes
         $diag = Get-DiagnosticFlags -Peer $peer
@@ -775,6 +842,7 @@ $netcheck = Get-NetcheckJson
                 (Format-Cell -Text $hostName -Width 20),
                 (Format-Cell -Text $os -Width 7),
                 (Format-Cell -Text $ip -Width 15),
+                (Format-Cell -Text $globalIPv6 -Width 4),
                 (Format-Cell -Text $last -Width 16),
                 (Format-Cell -Text $diag -Width 12)
             )
@@ -787,6 +855,7 @@ $netcheck = Get-NetcheckJson
                 (Format-Cell -Text $hostName -Width 22),
                 (Format-Cell -Text $os -Width 7),
                 (Format-Cell -Text $ip -Width 15),
+                (Format-Cell -Text $globalIPv6 -Width 4),
                 (Format-Cell -Text $rx -Width 10),
                 (Format-Cell -Text $tx -Width 10),
                 (Format-Cell -Text $diag -Width 12)
