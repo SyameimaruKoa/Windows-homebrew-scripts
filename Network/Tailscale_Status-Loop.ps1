@@ -1,195 +1,1043 @@
-﻿#regionヘルプ
+﻿#region HELP
 <#
 .SYNOPSIS
-    Tailscaleのステータスを定期的に表示するのじゃ。（残像除去・完全版）
+    Tailscale の接続状態を JSON ベースで定期表示するのじゃ。
 
 .DESCRIPTION
-    このスクリプトは、指定した間隔で 'tailscale status' コマンドを無限に実行し、
-    Tailscaleネットワークの状態を監視するために使うのじゃ。
-    
-    主な機能：
-    1. 画面サイズを自動で幅広（135文字）に調整。
-    2. メールアドレス列を削除し、各列を固定幅で整列。
-    3. 行末に空白パディングを入れることで、文字列が短くなった際の残像（ゴミ）を除去。
-    4. ちらつき防止のため、画面クリアではなくカーソル制御を行う。
-    
-    実行には管理者権限が必要じゃが、なければ自動で昇格を試みるぞ。
+    `tailscale status --json` の機械可読なステータスを取得し、
+    Tailscale ネットワークの状態を端末上で見やすく表示するのじゃ。
+
+    従来版のように `tailscale status` のテキスト出力を正規表現で分解せず、
+    JSON の構造をそのまま利用するため、ホスト名・OS・接続経路・通信量・
+    サブネットルート・最終確認時刻などを安定して扱えるのじゃ。
+
+    標準表示では以下を重点的に表示するぞ。
+      - ローカルノードの Tailscale IPv4 / IPv6
+      - Online / Active / Direct / DERP / Peer Relay / SubnetRoutes / ExitCandidates の集計
+      - Peer ごとの Online / Active / 接続経路
+      - Peer ごとの Tailscale IPv4 アドレス
+      - Peer ごとの通信量（RX / TX）と通信速度（通信量が多い方向のみ、bit/s）
+      - ネットワークマップ / MagicSock / WireGuard Engine の不整合
+
+    G6 はローカルノードの `tailscale netcheck --format=json` の GlobalV6 を使って
+    判定するのじゃ。現在の P2P 通信経路が IPv6 かどうかではないぞ。
 
 .PARAMETER Interval
-    ステータスを更新する間隔を秒単位で指定するのじゃ。デフォルトは2秒じゃ。
-    指定可能な値は1以上の整数じゃ。
+    ステータスを取得・表示する周期を秒単位で指定するのじゃ。
+    デフォルトは1秒じゃ。
+
+.PARAMETER OnlineOnly
+    Offline の Peer を一覧から隠すのじゃ。
+
+.PARAMETER Detail
+    詳細表示を有効にするのじゃ。
+    DNS 名、実際の接続先、LastHandshake、LastSeen などを追加表示するぞ。
 
 .PARAMETER Help
     このヘルプメッセージを表示するのじゃ。
 
 .EXAMPLE
     PS > .\Tailscale_Status-Loop.ps1
-    残像もちらつきもない、美しい監視画面が表示されるはずじゃ。
+
+.EXAMPLE
+    PS > .\Tailscale_Status-Loop.ps1 -Interval 5 -OnlineOnly
+
+.EXAMPLE
+    PS > .\Tailscale_Status-Loop.ps1 -Detail
 
 .NOTES
     スクリプトを止めるには Ctrl+C を押すがよい。
+    Tailscale CLI の JSON 形式は将来変更される可能性があるため、
+    存在しない任意フィールドは安全に既定値へフォールバックする設計じゃ。
 #>
 #endregion
+
 param(
-    [Parameter(HelpMessage = "更新間隔を秒単位で指定します（デフォルト: 2）")]
+    [Parameter(HelpMessage = "取得・表示周期を秒単位で指定します（デフォルト: 1）")]
     [ValidateRange(1, 3600)]
-    [int]$Interval = 2,
+    [int]$Interval = 1,
+
+    [Parameter(HelpMessage = "Offline の Peer を一覧から隠します")]
+    [switch]$OnlineOnly,
+
+    [Parameter(HelpMessage = "DNS名・接続先・LastHandshake 等の詳細情報を表示します")]
+    [switch]$Detail,
 
     [Parameter(HelpMessage = "ヘルプを表示します")]
     [Alias('h')]
     [switch]$Help
 )
 
-# -Help または -h が指定されたら、ヘルプを表示して終了するのじゃ
+#region INITIALIZE
 if ($Help) {
     Get-Help $MyInvocation.MyCommand.Path -Full
-    exit
+    exit 0
 }
 
-function Invoke-SelfElevation {
+$ErrorActionPreference = 'Stop'
+$script:PreviousFrameLineCount = 0
+$script:PreviousStats = @{}
+$script:PreviousStatsTimestamp = $null
+#endregion
+
+#region FORMAT
+function Format-Bytes {
     param(
-        [string[]]$ArgumentList
+        [AllowNull()]
+        [object]$Bytes
     )
 
-    $sudoCommand = Get-Command sudo -ErrorAction SilentlyContinue
-    if ($sudoCommand) {
-        $allArgs = @('powershell.exe') + $ArgumentList
-        & $sudoCommand @allArgs
-        exit
+    if ($null -eq $Bytes) {
+        return '-'
     }
 
-    $gsudoCommand = Get-Command gsudo -ErrorAction SilentlyContinue
-    if ($gsudoCommand) {
-        $allArgs = @('powershell.exe') + $ArgumentList
-        & $gsudoCommand @allArgs
-        exit
+    try {
+        [double]$value = $Bytes
+    }
+    catch {
+        return '-'
     }
 
-    Start-Process powershell.exe -ArgumentList $ArgumentList -Verb RunAs
-    exit
+    if ($value -ge 1TB) {
+        return '{0:N2} TB' -f ($value / 1TB)
+    }
+
+    if ($value -ge 1GB) {
+        return '{0:N2} GB' -f ($value / 1GB)
+    }
+
+    if ($value -ge 1MB) {
+        return '{0:N2} MB' -f ($value / 1MB)
+    }
+
+    if ($value -ge 1KB) {
+        return '{0:N2} KB' -f ($value / 1KB)
+    }
+
+    return '{0:N0} B' -f $value
 }
 
-# --- 管理者権限のチェックと昇格 ---
-if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Host "管理者権限で実行されておらん！自動で昇格するぞ。" -ForegroundColor Yellow
-    $relaunchArguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath)
-    foreach ($entry in $PSBoundParameters.GetEnumerator()) {
-        $relaunchArguments += "-$($entry.Key)"
-        if ($entry.Value -is [System.Management.Automation.SwitchParameter]) {
-            continue
+function Format-BitsPerSecond {
+    param(
+        [AllowNull()]
+        [object]$BitsPerSecond
+    )
+
+    if ($null -eq $BitsPerSecond) {
+        return '-'
+    }
+
+    try {
+        [double]$value = $BitsPerSecond
+    }
+    catch {
+        return '-'
+    }
+
+    if ($value -ge 1Gb) {
+        return '{0:N1}Gbit/s' -f ($value / 1Gb)
+    }
+
+    if ($value -ge 1Mb) {
+        return '{0:N1}Mbit/s' -f ($value / 1Mb)
+    }
+
+    if ($value -ge 1Kb) {
+        return '{0:N1}Kbit/s' -f ($value / 1Kb)
+    }
+
+    return '{0:N0}bit/s' -f $value
+}
+
+function Format-RateDisplay {
+    param(
+        [AllowNull()]
+        [object]$BitsPerSecond,
+
+        [AllowNull()]
+        [string]$Direction
+    )
+
+    $rate = Format-BitsPerSecond -BitsPerSecond $BitsPerSecond
+
+    if ($rate -eq '-') {
+        return '-'
+    }
+
+    if ($Direction -eq 'RX') {
+        return "↓$rate"
+    }
+
+    if ($Direction -eq 'TX') {
+        return "↑$rate"
+    }
+
+    return $rate
+}
+
+function Format-ShortDateTime {
+    param(
+        [AllowNull()]
+        [object]$Value
+    )
+
+    if ($null -eq $Value) {
+        return '-'
+    }
+
+    $text = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return '-'
+    }
+
+    try {
+        $timestamp = [DateTimeOffset]::Parse($text)
+
+        if ($timestamp.Year -le 1) {
+            return '-'
         }
-        $relaunchArguments += [string]$entry.Value
+
+        return $timestamp.ToLocalTime().ToString('MM-dd HH:mm:ss')
     }
-    Invoke-SelfElevation -ArgumentList $relaunchArguments
-}
-Write-Host "管理者として実行されたぞ。よしよし。" -ForegroundColor Green
-Write-Host ""
-
-# --- ウィンドウサイズの最適化 ---
-try {
-    $targetWidth = 135  # ステータスが長くても折り返さない十分な幅
-    $targetHeight = 50  # 一覧を一望できる高さ
-
-    $rawUI = $Host.UI.RawUI
-    $bufSize = $rawUI.BufferSize
-    $winSize = $rawUI.WindowSize
-
-    if ($bufSize.Width -lt $targetWidth) { $bufSize.Width = $targetWidth }
-    if ($bufSize.Height -lt 3000) { $bufSize.Height = 3000 }
-    $rawUI.BufferSize = $bufSize
-
-    $winSize.Width = $targetWidth
-    if ($winSize.Height -lt $targetHeight) { $winSize.Height = $targetHeight }
-    $rawUI.WindowSize = $winSize
-    
-    Write-Host "画面サイズを調整したぞ。ここまでは順調じゃ。" -ForegroundColor Cyan
-}
-catch {
-    Write-Host "画面サイズの変更に失敗したようじゃが、続行するぞ。" -ForegroundColor Yellow
+    catch {
+        return $text
+    }
 }
 
-# --- ループ開始前の案内 ---
-Write-Host "------------------------------------------------------------" -ForegroundColor Cyan
-Write-Host "Tailscaleのステータスを $($Interval)秒おきに更新するぞ。" -ForegroundColor Cyan
-Write-Host "残像が出ないよう、行末までしっかり掃除しながら表示するから安心せい。" -ForegroundColor Cyan
-Write-Host "止めたければ Ctrl+C を押すがよい。" -ForegroundColor Cyan
-Write-Host "------------------------------------------------------------" -ForegroundColor Cyan
-Start-Sleep -Seconds 2
-Clear-Host # 最初に一度だけ画面をきれいにする
+function Format-DaysUntil {
+    param(
+        [AllowNull()]
+        [object]$Value
+    )
 
-# --- バイト数を人間にやさしい単位にフォーマットする関数 ---
-function Format-Bytes {
-    param([long]$Bytes)
-    if ($Bytes -ge 1TB) { return '{0:N2} TB' -f ($Bytes / 1TB) }
-    if ($Bytes -ge 1GB) { return '{0:N2} GB' -f ($Bytes / 1GB) }
-    if ($Bytes -ge 1MB) { return '{0:N2} MB' -f ($Bytes / 1MB) }
-    if ($Bytes -ge 1KB) { return '{0:N2} KB' -f ($Bytes / 1KB) }
-    return "$Bytes B"
+    if ($null -eq $Value) {
+        return '-'
+    }
+
+    $text = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return '-'
+    }
+
+    try {
+        $timestamp = [DateTimeOffset]::Parse($text)
+        if ($timestamp.Year -le 1) {
+            return '-'
+        }
+
+        $days = [math]::Ceiling(($timestamp.ToLocalTime() - [DateTimeOffset]::Now).TotalDays)
+        return '{0}日' -f $days
+    }
+    catch {
+        return '-'
+    }
 }
 
-# --- statusループ (ちらつき対策・整列・残像除去版) ---
-while ($true) {
-    # 現在のウィンドウ幅を取得（パディング計算用）
-    # 端まで埋めると自動改行されてしまうことがあるため、-1 文字分だけ確保する
-    $currentWidth = $Host.UI.RawUI.WindowSize.Width - 1
-    
-    # カーソルを左上(0,0)に移動
-    $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates(0, 0)
-    
-    # タイトル行の表示（ここもパディングして残像を消す）
-    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    $headerTitle = "[$timestamp] Tailscale Status (No Email / Clean View)"
-    Write-Host $headerTitle.PadRight($currentWidth) -ForegroundColor Green
-    
-    Write-Host ("=" * 40).PadRight($currentWidth) -ForegroundColor Green
-    
-    # tailscale statusを実行し、整形・パディングして表示
-    tailscale status | ForEach-Object {
-        $parts = $_ -split '\s+'
-        
-        if ($parts.Count -ge 4) {
-            $ip = $parts[0]
-            $hostName = $parts[1]
-            $os = $parts[3] # Email($parts[2])をスキップ
-            $status = $parts[4..($parts.Length - 1)] -join ' '
+function Get-StringArray {
+    param(
+        [AllowNull()]
+        [object]$Value
+    )
 
-            # tx/rx のバイト数を読みやすい単位に変換
-            $status = [regex]::Replace($status, '\b(tx|rx)\s+(\d+)\b', {
-                param($m)
-                $label = $m.Groups[1].Value
-                $bytes = [long]$m.Groups[2].Value
-                "$label $(Format-Bytes $bytes)"
-            })
-            
-            # 固定幅フォーマットを作成
-            $line = "{0,-16} {1,-25} {2,-8} {3}" -f $ip, $hostName, $os, $status
-            
-            # 【重要】ウィンドウ幅いっぱいまでスペースで埋める（残像消去）
-            # 文字列がウィンドウ幅より長い場合はそのまま、短い場合はパディング
-            if ($line.Length -lt $currentWidth) {
-                $line = $line.PadRight($currentWidth)
+    if ($null -eq $Value) {
+        return @()
+    }
+
+    return @($Value | ForEach-Object {
+        if ($null -ne $_) {
+            [string]$_
+        }
+    })
+}
+
+function Get-IPv4Address {
+    param(
+        [AllowNull()]
+        [object]$Value
+    )
+
+    foreach ($address in (Get-StringArray $Value)) {
+        if ($address -notmatch ':') {
+            return $address
+        }
+    }
+
+    return '-'
+}
+
+function Get-IPv6Address {
+    param(
+        [AllowNull()]
+        [object]$Value
+    )
+
+    foreach ($address in (Get-StringArray $Value)) {
+        if ($address -match ':') {
+            return $address
+        }
+    }
+
+    return '-'
+}
+
+function Join-Values {
+    param(
+        [AllowNull()]
+        [object]$Value,
+
+        [string]$Separator = ', '
+    )
+
+    $values = Get-StringArray $Value
+
+    if ($values.Count -eq 0) {
+        return '-'
+    }
+
+    return ($values -join $Separator)
+}
+
+function Limit-Text {
+    param(
+        [AllowNull()]
+        [string]$Text,
+
+        [Parameter(Mandatory)]
+        [int]$Width
+    )
+
+    if ($Width -le 0) {
+        return ''
+    }
+
+    if ($null -eq $Text) {
+        $Text = ''
+    }
+
+    if ($Text.Length -le $Width) {
+        return $Text
+    }
+
+    if ($Width -le 1) {
+        return $Text.Substring(0, $Width)
+    }
+
+    return ($Text.Substring(0, $Width - 1) + '…')
+}
+
+function Format-Cell {
+    param(
+        [AllowNull()]
+        [string]$Text,
+
+        [Parameter(Mandatory)]
+        [int]$Width
+    )
+
+    return (Limit-Text -Text $Text -Width $Width).PadRight($Width)
+}
+#endregion
+
+#region TAILSCALE
+function Get-TailscaleJson {
+    $raw = & tailscale status --json 2>&1
+
+    if ($LASTEXITCODE -ne 0) {
+        $message = ($raw | Out-String).Trim()
+
+        if ([string]::IsNullOrWhiteSpace($message)) {
+            $message = "tailscale status --json が終了コード $LASTEXITCODE で失敗したのじゃ。"
+        }
+
+        throw $message
+    }
+
+    if ($null -eq $raw) {
+        throw 'tailscale status --json が何も返さなかったのじゃ。'
+    }
+
+    $jsonText = ($raw | Out-String).Trim()
+
+    if ([string]::IsNullOrWhiteSpace($jsonText)) {
+        throw 'tailscale status --json が空の JSON を返したのじゃ。'
+    }
+
+    try {
+        return ($jsonText | ConvertFrom-Json)
+    }
+    catch {
+        throw "Tailscale の JSON を解析できなかったのじゃ: $($_.Exception.Message)"
+    }
+}
+
+function Get-PeerObjects {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Status
+    )
+
+    if ($null -eq $Status.Peer) {
+        return @()
+    }
+
+    $properties = $Status.Peer.PSObject.Properties
+
+    return @(
+        foreach ($property in $properties) {
+            if ($null -ne $property.Value) {
+                $property.Value
             }
-            
-            Write-Host $line
+        }
+    )
+}
+
+function Get-PathType {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Peer
+    )
+
+    if (-not $Peer.Online) {
+        return 'OFFLINE'
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$Peer.CurAddr)) {
+        return 'DIRECT'
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$Peer.PeerRelay)) {
+        return 'PEER'
+    }
+
+    if ($Peer.Active -and -not [string]::IsNullOrWhiteSpace([string]$Peer.Relay)) {
+        return 'DERP'
+    }
+
+    return 'IDLE'
+}
+
+function Get-PathDisplay {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Peer
+    )
+
+    switch (Get-PathType -Peer $Peer) {
+        'DIRECT' { return 'DIRECT' }
+        'PEER' { return 'PEER-RELAY' }
+        'DERP' {
+            $relay = [string]$Peer.Relay
+            if ([string]::IsNullOrWhiteSpace($relay)) {
+                return 'DERP'
+            }
+            return "DERP($relay)"
+        }
+        'OFFLINE' { return 'OFFLINE' }
+        'IDLE' { return 'IDLE' }
+        default { return '-' }
+    }
+}
+
+function Get-CommunicationAddress {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Peer
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$Peer.CurAddr)) {
+        return [string]$Peer.CurAddr
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$Peer.PeerRelay)) {
+        return [string]$Peer.PeerRelay
+    }
+
+    if ($Peer.Active -and -not [string]::IsNullOrWhiteSpace([string]$Peer.Relay)) {
+        return "DERP:$([string]$Peer.Relay)"
+    }
+
+    return '-'
+}
+
+function Get-DiagnosticFlags {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Peer
+    )
+
+    $flags = [System.Collections.Generic.List[string]]::new()
+
+    if ($Peer.Online -and $Peer.Active) {
+        if (-not $Peer.InNetworkMap) {
+            [void]$flags.Add('!MAP')
+        }
+
+        if (-not $Peer.InMagicSock) {
+            [void]$flags.Add('!MAGIC')
+        }
+
+        if (-not $Peer.InEngine) {
+            [void]$flags.Add('!ENGINE')
+        }
+    }
+
+    if ($Peer.Expired) {
+        [void]$flags.Add('EXPIRED')
+    }
+
+    return ($flags -join ' ')
+}
+
+function Get-NetcheckJson {
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $process.StartInfo.FileName = 'tailscale.exe'
+    $process.StartInfo.Arguments = 'netcheck --format=json'
+    $process.StartInfo.UseShellExecute = $false
+    $process.StartInfo.CreateNoWindow = $true
+    $process.StartInfo.RedirectStandardOutput = $true
+    $process.StartInfo.RedirectStandardError = $true
+
+    try {
+        if (-not $process.Start()) {
+            throw 'tailscale netcheck --format=json を起動できなかったのじゃ。'
+        }
+
+        $stdout = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+        $exitCode = $process.ExitCode
+    }
+    finally {
+        $process.Dispose()
+    }
+
+    if ($exitCode -ne 0) {
+        $message = $stderr.Trim()
+
+        if ([string]::IsNullOrWhiteSpace($message)) {
+            $message = "tailscale netcheck --format=json が終了コード $exitCode で失敗したのじゃ。"
+        }
+
+        throw $message
+    }
+
+    $jsonText = $stdout.Trim()
+
+    if ([string]::IsNullOrWhiteSpace($jsonText)) {
+        throw 'tailscale netcheck --format=json が空の JSON を返したのじゃ。'
+    }
+
+    try {
+        return ($jsonText | ConvertFrom-Json)
+    }
+    catch {
+        throw "Tailscale netcheck の JSON を解析できなかったのじゃ: $($_.Exception.Message)"
+    }
+}
+
+function Get-LocalIPv6Status {
+    param(
+        [AllowNull()]
+        [object]$Netcheck
+    )
+
+    if ($null -eq $Netcheck) {
+        return 'G6 ?'
+    }
+
+    $globalV6 = [string]$Netcheck.GlobalV6
+
+    if (-not [string]::IsNullOrWhiteSpace($globalV6) -and
+        $globalV6 -notmatch 'invalid IP:port|0\.0\.0\.0:0|\[?::\]?:0') {
+        return "G6 YES $globalV6"
+    }
+
+    if ([bool]$Netcheck.IPv6) {
+        return 'G6 NO-ADDR'
+    }
+
+    return 'G6 NO'
+}
+
+function Get-PeerDisplayName {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Peer
+    )
+
+    $dnsName = [string]$Peer.DNSName
+
+    if (-not [string]::IsNullOrWhiteSpace($dnsName)) {
+        $dnsName = $dnsName.TrimEnd('.')
+        $machineName = $dnsName.Split('.')[0]
+
+        if (-not [string]::IsNullOrWhiteSpace($machineName)) {
+            return $machineName
+        }
+    }
+
+    return '(unknown)'
+}
+
+function Get-PeerRateKey {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Peer
+    )
+
+    $nodeId = [string]$Peer.NodeID
+    if (-not [string]::IsNullOrWhiteSpace($nodeId)) {
+        return "node:$nodeId"
+    }
+
+    $publicKey = [string]$Peer.PublicKey
+    if (-not [string]::IsNullOrWhiteSpace($publicKey)) {
+        return "key:$publicKey"
+    }
+
+    return "name:$(Get-PeerDisplayName -Peer $Peer)"
+}
+
+function Get-PeerSortOrder {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Peer
+    )
+
+    if ($Peer.Online -and $Peer.Active) {
+        return 0
+    }
+
+    if ($Peer.Online) {
+        return 1
+    }
+
+    return 2
+}
+
+function Resolve-UserDisplayName {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Status,
+
+        [AllowNull()]
+        [object]$UserId
+    )
+
+    if ($null -eq $Status.User -or $null -eq $UserId) {
+        return '-'
+    }
+
+    $key = [string]$UserId
+    $property = $Status.User.PSObject.Properties[$key]
+
+    if ($null -eq $property -or $null -eq $property.Value) {
+        return '-'
+    }
+
+    $profile = $property.Value
+    $displayName = [string]$profile.DisplayName
+
+    if (-not [string]::IsNullOrWhiteSpace($displayName)) {
+        return $displayName
+    }
+
+    $loginName = [string]$profile.LoginName
+    if (-not [string]::IsNullOrWhiteSpace($loginName)) {
+        return $loginName
+    }
+
+    return '-'
+}
+#endregion
+
+#region RENDER
+function Get-WindowWidth {
+    try {
+        return [math]::Max(60, $Host.UI.RawUI.WindowSize.Width - 1)
+    }
+    catch {
+        return 119
+    }
+}
+
+function Write-Frame {
+    param(
+        [Parameter(Mandatory)]
+        [System.Collections.IEnumerable]$Frame
+    )
+
+    $width = Get-WindowWidth
+    $frameArray = @($Frame)
+
+    try {
+        $windowHeight = $Host.UI.RawUI.WindowSize.Height
+        $maxVisibleLines = [math]::Max(1, $windowHeight - 1)
+    }
+    catch {
+        $maxVisibleLines = [math]::Max(1, $script:PreviousFrameLineCount)
+    }
+
+    # 端末をスクロールさせないため、最下段は空けて上側だけを描画するのじゃ。
+    $visibleFrameCount = [math]::Min($frameArray.Count, $maxVisibleLines)
+    $visibleFrame = @($frameArray | Select-Object -First $visibleFrameCount)
+
+    try {
+        $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates(0, 0)
+    }
+    catch {
+        Clear-Host
+    }
+
+    $currentLine = 0
+
+    foreach ($entry in $visibleFrame) {
+        $text = Limit-Text -Text ([string]$entry.Text) -Width $width
+        $padded = $text.PadRight($width)
+
+        if ($entry.PSObject.Properties['Color']) {
+            Write-Host $padded -ForegroundColor $entry.Color
         }
         else {
-            # 解析できない行もパディングして表示
-            if ($_.Length -lt $currentWidth) {
-                Write-Host $_.PadRight($currentWidth)
+            Write-Host $padded
+        }
+
+        $currentLine++
+    }
+
+    $previousVisibleLines = [math]::Min($script:PreviousFrameLineCount, $maxVisibleLines)
+
+    while ($currentLine -lt $previousVisibleLines) {
+        Write-Host (' ' * $width)
+        $currentLine++
+    }
+
+    $script:PreviousFrameLineCount = $visibleFrameCount
+}
+
+function New-Frame {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Status
+    )
+
+    $width = Get-WindowWidth
+    $frame = [System.Collections.Generic.List[object]]::new()
+
+    $now = Get-Date
+    $sampleTime = [DateTimeOffset]::UtcNow
+    $sampleElapsedSeconds = 0.0
+
+    if ($null -ne $script:PreviousStatsTimestamp) {
+        $sampleElapsedSeconds = ($sampleTime - $script:PreviousStatsTimestamp).TotalSeconds
+    }
+
+    $currentStats = @{}
+    $self = $Status.Self
+    $peers = @(Get-PeerObjects -Status $Status)
+
+    if ($OnlineOnly) {
+        $displayPeers = @($peers | Where-Object { $_.Online })
+    }
+    else {
+        $displayPeers = @($peers)
+    }
+
+    $displayPeers = @(
+        $displayPeers |
+            ForEach-Object {
+                [pscustomobject]@{
+                    Peer = $_
+                    SortOrder = Get-PeerSortOrder -Peer $_
+                    Name = Get-PeerDisplayName -Peer $_
+                }
+            } |
+            Sort-Object SortOrder, Name |
+            ForEach-Object { $_.Peer }
+    )
+
+    $onlinePeers = @($peers | Where-Object { $_.Online })
+    $activePeers = @($peers | Where-Object { $_.Active })
+    $directPeers = @($onlinePeers | Where-Object { (Get-PathType -Peer $_) -eq 'DIRECT' })
+    $peerRelayPeers = @($onlinePeers | Where-Object { (Get-PathType -Peer $_) -eq 'PEER' })
+    $relayPeers = @($onlinePeers | Where-Object { (Get-PathType -Peer $_) -eq 'DERP' })
+    $idlePeers = @($onlinePeers | Where-Object { (Get-PathType -Peer $_) -eq 'IDLE' })
+    $routePeers = @($onlinePeers | Where-Object { @(Get-StringArray $_.PrimaryRoutes).Count -gt 0 })
+    $exitPeers = @($onlinePeers | Where-Object { $_.ExitNodeOption })
+    $selfName = Get-PeerDisplayName -Peer $self
+    $selfIPv4 = Get-IPv4Address -Value $self.TailscaleIPs
+    $selfIPv6 = Get-IPv6Address -Value $self.TailscaleIPs
+
+    $netcheck = Get-NetcheckJson
+    $localIPv6Status = Get-LocalIPv6Status -Netcheck $netcheck
+
+    $title = "[{0}] Tailscale Status :: {1}" -f $now.ToString('yyyy-MM-dd HH:mm:ss'), $selfName
+    $line1 = "Local {0} | IPv4 {1} | IPv6 {2}" -f `
+        $selfName, $selfIPv4, $selfIPv6
+
+    $line2 = "Peers {0}/{1} online | {2} active | Direct {3} | DERP {4} | PeerRelay {5} | Idle {6} | SubnetRoutes {7} | ExitCandidates {8}" -f `
+        $onlinePeers.Count,
+        $peers.Count,
+        $activePeers.Count,
+        $directPeers.Count,
+        $relayPeers.Count,
+        $peerRelayPeers.Count,
+        $idlePeers.Count,
+        $routePeers.Count,
+        $exitPeers.Count
+
+    [void]$frame.Add([pscustomobject]@{ Text = $title; Color = 'Green' })
+    [void]$frame.Add([pscustomobject]@{ Text = $line1; Color = 'Cyan' })
+    [void]$frame.Add([pscustomobject]@{ Text = $line2; Color = 'Cyan' })
+
+    [void]$frame.Add([pscustomobject]@{
+        Text = ('-' * [math]::Min($width, 140))
+        Color = 'DarkCyan'
+    })
+
+    $columns = @(
+        @{ Name = 'ST';     Width = 6 }
+        @{ Name = 'PATH';   Width = 11 }
+        @{ Name = 'ADDR';   Width = 22 }
+        @{ Name = 'HOST';   Width = 22 }
+        @{ Name = 'OS';     Width = 7 }
+        @{ Name = 'IP';     Width = 15 }
+        @{ Name = 'RATE';   Width = 12 }
+        @{ Name = 'RX';     Width = 10 }
+        @{ Name = 'TX';     Width = 10 }
+
+        @{ Name = 'DIAG';   Width = 12 }
+    )
+
+    if ($Detail) {
+        $columns = @(
+            @{ Name = 'ST';     Width = 6 }
+            @{ Name = 'PATH';   Width = 11 }
+            @{ Name = 'ADDR';   Width = 22 }
+            @{ Name = 'HOST';   Width = 20 }
+            @{ Name = 'OS';     Width = 7 }
+            @{ Name = 'IP';     Width = 15 }
+            @{ Name = 'RATE';   Width = 12 }
+            @{ Name = 'RX';     Width = 10 }
+            @{ Name = 'TX';     Width = 10 }
+            @{ Name = 'LAST';   Width = 16 }
+            @{ Name = 'DIAG';   Width = 12 }
+        )
+    }
+
+    $header = ''
+    foreach ($column in $columns) {
+        if ($header.Length -gt 0) {
+            $header += ' '
+        }
+
+        $header += (Format-Cell -Text $column.Name -Width $column.Width)
+    }
+
+    [void]$frame.Add([pscustomobject]@{
+        Text = $header
+        Color = 'White'
+    })
+
+    foreach ($peer in $displayPeers) {
+        $state = if (-not $peer.Online) {
+            'OFFLINE'
+        }
+        elseif ($peer.Active) {
+            'ACTIVE'
+        }
+        else {
+            'ONLINE'
+        }
+
+        $path = Get-PathDisplay -Peer $peer
+        $address = Get-CommunicationAddress -Peer $peer
+        $hostName = Get-PeerDisplayName -Peer $peer
+        $os = [string]$peer.OS
+        $ip = Get-IPv4Address -Value $peer.TailscaleIPs
+        $diag = Get-DiagnosticFlags -Peer $peer
+
+        $rateKey = Get-PeerRateKey -Peer $peer
+        $currentRxBytes = [double]$peer.RxBytes
+        $currentTxBytes = [double]$peer.TxBytes
+
+        $rateBitsPerSecond = $null
+        $rateDirection = $null
+
+        if ($script:PreviousStats.ContainsKey($rateKey)) {
+            $previous = $script:PreviousStats[$rateKey]
+
+            if ($sampleElapsedSeconds -gt 0) {
+                $rxBitsPerSecond = $null
+                $txBitsPerSecond = $null
+
+                if ($currentRxBytes -ge $previous.RxBytes) {
+                    $rxBitsPerSecond = (($currentRxBytes - $previous.RxBytes) * 8) / $sampleElapsedSeconds
+                }
+
+                if ($currentTxBytes -ge $previous.TxBytes) {
+                    $txBitsPerSecond = (($currentTxBytes - $previous.TxBytes) * 8) / $sampleElapsedSeconds
+                }
+
+                if ($null -ne $rxBitsPerSecond -and $null -ne $txBitsPerSecond) {
+                    if ($rxBitsPerSecond -gt $txBitsPerSecond) {
+                        $rateBitsPerSecond = $rxBitsPerSecond
+                        $rateDirection = 'RX'
+                    }
+                    elseif ($txBitsPerSecond -gt $rxBitsPerSecond) {
+                        $rateBitsPerSecond = $txBitsPerSecond
+                        $rateDirection = 'TX'
+                    }
+                }
+                elseif ($null -ne $rxBitsPerSecond) {
+                    $rateBitsPerSecond = $rxBitsPerSecond
+                    $rateDirection = 'RX'
+                }
+                elseif ($null -ne $txBitsPerSecond) {
+                    $rateBitsPerSecond = $txBitsPerSecond
+                    $rateDirection = 'TX'
+                }
             }
-            else {
-                Write-Host $_
+
+            # 新しい通信量が取れなかった場合は、直前に有効だった速度を維持するのじゃ。
+            if ($null -eq $rateBitsPerSecond -and $null -ne $previous.RateBitsPerSecond) {
+                $rateBitsPerSecond = $previous.RateBitsPerSecond
+                $rateDirection = [string]$previous.RateDirection
             }
         }
+
+        $rateDisplay = Format-RateDisplay -BitsPerSecond $rateBitsPerSecond -Direction $rateDirection
+        $rxTotal = Format-Bytes -Bytes $currentRxBytes
+        $txTotal = Format-Bytes -Bytes $currentTxBytes
+
+        $currentStats[$rateKey] = [pscustomobject]@{
+            RxBytes = $currentRxBytes
+            TxBytes = $currentTxBytes
+            RateBitsPerSecond = $rateBitsPerSecond
+            RateDirection = $rateDirection
+        }
+
+        if ($Detail) {
+            $last = '-'
+
+            if ($peer.Online -and $peer.Active) {
+                $last = Format-ShortDateTime -Value $peer.LastHandshake
+            }
+            elseif (-not $peer.Online) {
+                $last = Format-ShortDateTime -Value $peer.LastSeen
+            }
+
+            $values = @(
+                (Format-Cell -Text $state -Width 6),
+                (Format-Cell -Text $path -Width 11),
+                (Format-Cell -Text $address -Width 22),
+                (Format-Cell -Text $hostName -Width 20),
+                (Format-Cell -Text $os -Width 7),
+                (Format-Cell -Text $ip -Width 15),
+                (Format-Cell -Text $rateDisplay -Width 12),
+                (Format-Cell -Text $rxTotal -Width 10),
+                (Format-Cell -Text $txTotal -Width 10),
+                (Format-Cell -Text $last -Width 16),
+                (Format-Cell -Text $diag -Width 12)
+            )
+        }
+        else {
+            $values = @(
+                (Format-Cell -Text $state -Width 6),
+                (Format-Cell -Text $path -Width 11),
+                (Format-Cell -Text $address -Width 22),
+                (Format-Cell -Text $hostName -Width 22),
+                (Format-Cell -Text $os -Width 7),
+                (Format-Cell -Text $ip -Width 15),
+                (Format-Cell -Text $rateDisplay -Width 12),
+                (Format-Cell -Text $rxTotal -Width 10),
+                (Format-Cell -Text $txTotal -Width 10),
+                (Format-Cell -Text $diag -Width 12)
+            )
+        }
+
+        $row = ($values -join ' ')
+        $rowColor = 'Gray'
+
+        if ($peer.Online -and $peer.Active) {
+            $rowColor = 'Green'
+        }
+        elseif ($peer.Online) {
+            $rowColor = 'White'
+        }
+        elseif (-not $peer.Online) {
+            $rowColor = 'DarkGray'
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($diag)) {
+            $rowColor = 'Yellow'
+        }
+
+        [void]$frame.Add([pscustomobject]@{
+            Text = $row
+            Color = $rowColor
+        })
     }
-    
-    Write-Host ("=" * 40).PadRight($currentWidth) -ForegroundColor Green
-    
-    # 画面下部の掃除（行数が減った場合のために余白で上書き）
-    # 念のため多めに空行を入れる
-    for ($i = 0; $i -lt 5; $i++) {
-        Write-Host (" " * $currentWidth)
-    }
-    
-    Start-Sleep -Seconds $Interval
+
+    [void]$frame.Add([pscustomobject]@{
+        Text = ('-' * [math]::Min($width, 140))
+        Color = 'DarkCyan'
+    })
+
+    [void]$frame.Add([pscustomobject]@{
+        Text = "Local Netcheck | $localIPv6Status"
+        Color = 'Cyan'
+    })
+
+    $script:PreviousStats = $currentStats
+    $script:PreviousStatsTimestamp = $sampleTime
+
+    return $frame
 }
+#endregion
+
+#region MAIN
+$nextUpdate = [DateTime]::UtcNow
+
+while ($true) {
+    try {
+        $status = Get-TailscaleJson
+        $frame = New-Frame -Status $status
+        Write-Frame -Frame $frame
+    }
+    catch {
+        $width = Get-WindowWidth
+
+        try {
+            $Host.UI.RawUI.CursorPosition = New-Object System.Management.Automation.Host.Coordinates(0, 0)
+        }
+        catch {
+            Clear-Host
+        }
+
+        $errorText = Limit-Text -Text ("ERROR: " + $_.Exception.Message) -Width $width
+        Write-Host $errorText.PadRight($width) -ForegroundColor Red
+
+        if ($script:PreviousFrameLineCount -gt 1) {
+            for ($i = 1; $i -lt $script:PreviousFrameLineCount; $i++) {
+                Write-Host (' ' * $width)
+            }
+        }
+
+        $script:PreviousFrameLineCount = [math]::Max(1, $script:PreviousFrameLineCount)
+        $script:PreviousStats = @{}
+        $script:PreviousStatsTimestamp = $null
+    }
+
+    $nextUpdate = $nextUpdate.AddSeconds($Interval)
+    $remainingMilliseconds = [math]::Round(($nextUpdate - [DateTime]::UtcNow).TotalMilliseconds)
+
+    if ($remainingMilliseconds -gt 0) {
+        Start-Sleep -Milliseconds $remainingMilliseconds
+    }
+    else {
+        $nextUpdate = [DateTime]::UtcNow
+    }
+}
+#endregion

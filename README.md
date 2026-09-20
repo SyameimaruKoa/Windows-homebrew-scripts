@@ -122,9 +122,41 @@ Mobile/         Android・サイドロード
 | [Remote_Start-Demucs.ps1](Network/Remote_Start-Demucs.ps1)         | リモートで Demucs を起動しトンネル/転送を設定 |
 | [Set-NetworkConfig.ps1](Network/Set-NetworkConfig.ps1)             | ネットワーク設定の適用/変更（GUI）            |
 | [Tailscale_Ping-Loop.ps1](Network/Tailscale_Ping-Loop.ps1)         | Tailscale デバイスへ継続 ping                 |
-| [Tailscale_Status-Loop.ps1](Network/Tailscale_Status-Loop.ps1)     | Tailscale ステータスを定期表示（残像除去）    |
+| [Tailscale_Status-Loop.ps1](Network/Tailscale_Status-Loop.ps1)     | Tailscale の接続状態・通信量・概算速度を1秒周期で表示 |
 | [WiFi_Get-Info.ps1](Network/WiFi_Get-Info.ps1)                     | 現在の Wi-Fi 接続情報を表示                   |
 
+### Tailscale_Status-Loop.ps1
+
+Tailscale `status --json` を利用して、Tailscale のPeer状態をリアルタイムに表示します。
+
+```powershell
+# 標準表示（1秒周期）
+PS C:\> .\Network\Tailscale_Status-Loop.ps1
+
+# Offline Peer を非表示
+PS C:\> .\Network\Tailscale_Status-Loop.ps1 -OnlineOnly
+
+# 詳細表示
+PS C:\> .\Network\Tailscale_Status-Loop.ps1 -Detail
+
+# 更新周期を変更
+PS C:\> .\Network\Tailscale_Status-Loop.ps1 -Interval 5
+```
+
+主な表示内容：
+
+- ローカルノードのTailscale IPv4 / IPv6
+- Online / Active / Direct / DERP / Peer Relay / Idle の集計
+- Peerごとの接続経路と実際の通信先
+- Tailscale Machine name、OS、Tailscale IPv4
+- RX / TX の累積通信量
+- 直近の通信量差分から算出した概算通信速度（bit/s）
+  - RX / TX のうち、その時点で通信量が多い方向のみ表示
+  - 有効な速度値が取得できない場合は直前の値を維持
+- ネットワークマップ / MagicSock / WireGuard Engine の診断フラグ
+- ローカルノード自身の `tailscale netcheck --format=json` に基づくIPv6到達状況
+
+表示領域よりPeer一覧が長い場合は、画面下部へスクロールさせず、上側の情報を優先して表示します。
 ### Mobile — Android・サイドロード
 
 | ファイル                                                                      | 説明                                                       |
