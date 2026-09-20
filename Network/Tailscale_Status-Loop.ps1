@@ -20,10 +20,8 @@
       - RX / TX 通信量
       - ネットワークマップ / MagicSock / WireGuard Engine の不整合
 
-    G6 は以下の意味で表示するのじゃ。
-      - YES: 現在確認できるグローバル IPv6 エンドポイントあり
-      - NO: 取得できた Addrs にグローバル IPv6 なし
-      - ?: status --json だけでは判定できない
+    G6 はローカルノードの `tailscale netcheck --format=json` の GlobalV6 を使って
+    判定するのじゃ。現在の P2P 通信経路が IPv6 かどうかではないぞ。
 
 .PARAMETER Interval
     ステータスを更新する間隔を秒単位で指定するのじゃ。
@@ -410,104 +408,59 @@ function Get-DiagnosticFlags {
     return ($flags -join ' ')
 }
 
-function Test-GlobalIPv6Address {
-    param(
-        [AllowNull()]
-        [string]$Address
-    )
+function Get-NetcheckJson {
+    $raw = & tailscale netcheck --format=json 2>&1
 
-    if ([string]::IsNullOrWhiteSpace($Address)) {
-        return $false
+    if ($LASTEXITCODE -ne 0) {
+        $message = ($raw | Out-String).Trim()
+
+        if ([string]::IsNullOrWhiteSpace($message)) {
+            $message = "tailscale netcheck --format=json が終了コード $LASTEXITCODE で失敗したのじゃ。"
+        }
+
+        throw $message
+    }
+
+    if ($null -eq $raw) {
+        throw 'tailscale netcheck --format=json が何も返さなかったのじゃ。'
+    }
+
+    $jsonText = ($raw | Out-String).Trim()
+
+    if ([string]::IsNullOrWhiteSpace($jsonText)) {
+        throw 'tailscale netcheck --format=json が空の JSON を返したのじゃ。'
     }
 
     try {
-        $parsed = [System.Net.IPAddress]::Parse($Address)
-
-        if ($parsed.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetworkV6) {
-            return $false
-        }
-
-        $bytes = $parsed.GetAddressBytes()
-        return (($bytes[0] -band 0xE0) -eq 0x20)
+        return ($jsonText | ConvertFrom-Json)
     }
     catch {
-        return $false
+        throw "Tailscale netcheck の JSON を解析できなかったのじゃ: $($_.Exception.Message)"
     }
 }
 
-function Test-GlobalIPv6Endpoint {
+function Get-LocalIPv6Status {
     param(
         [AllowNull()]
-        [object]$Value
+        [object]$Netcheck
     )
 
-    foreach ($endpoint in (Get-StringArray $Value)) {
-        $address = $null
-
-        if ($endpoint -match '^\[(?<address>[0-9A-Fa-f:]+)\](?::\d+)?$') {
-            $address = $Matches['address']
-        }
-        elseif ($endpoint -match '^(?<address>[0-9A-Fa-f:]+)$') {
-            $address = $Matches['address']
-        }
-
-        if (Test-GlobalIPv6Address -Address $address) {
-            return $true
-        }
+    if ($null -eq $Netcheck) {
+        return 'G6 ?'
     }
 
-    return $false
-}
+    $globalV6 = [string]$Netcheck.GlobalV6
 
-function Test-EndpointListPresent {
-    param(
-        [AllowNull()]
-        [object]$Value
-    )
-
-    return ((Get-StringArray $Value).Count -gt 0)
-}
-
-function Get-GlobalIPv6Status {
-    param(
-        [Parameter(Mandatory)]
-        [object]$Peer
-    )
-
-    if (Test-GlobalIPv6Endpoint -Value $Peer.CurAddr) {
-        return 'YES'
+    if (-not [string]::IsNullOrWhiteSpace($globalV6) -and
+        $globalV6 -notmatch 'invalid IP:port|0\.0\.0\.0:0|\[?::\]?:0') {
+        return "G6 YES $globalV6"
     }
 
-    if (Test-GlobalIPv6Endpoint -Value $Peer.Addrs) {
-        return 'YES'
+    if ([bool]$Netcheck.IPv6) {
+        return 'G6 NO-ADDR'
     }
 
-    if (Test-EndpointListPresent -Value $Peer.Addrs) {
-        return 'NO'
-    }
-
-    return '?'
-}
-
-function Get-CommunicationAddress {
-    param(
-        [Parameter(Mandatory)]
-        [object]$Peer
-    )
-
-    if (-not [string]::IsNullOrWhiteSpace([string]$Peer.CurAddr)) {
-        return [string]$Peer.CurAddr
-    }
-
-    if (-not [string]::IsNullOrWhiteSpace([string]$Peer.PeerRelay)) {
-        return [string]$Peer.PeerRelay
-    }
-
-    if ($Peer.Active -and -not [string]::IsNullOrWhiteSpace([string]$Peer.Relay)) {
-        return "DERP:$($Peer.Relay)"
-    }
-
-    return '-'
+    return 'G6 NO'
 }
 
 function Get-PeerDisplayName {
@@ -676,6 +629,9 @@ function New-Frame {
     $selfIPv4 = Get-IPv4Address -Value $self.TailscaleIPs
     $selfIPv6 = Get-IPv6Address -Value $self.TailscaleIPs
 
+$netcheck = Get-NetcheckJson
+    $localIPv6Status = Get-LocalIPv6Status -Netcheck $netcheck
+
     $title = "[{0}] Tailscale Status :: {1}" -f $now.ToString('yyyy-MM-dd HH:mm:ss'), $selfName
     $line1 = "Local {0} | IPv4 {1} | IPv6 {2}" -f `
         $selfName, $selfIPv4, $selfIPv6
@@ -706,9 +662,8 @@ function New-Frame {
         @{ Name = 'ADDR';   Width = 22 }
         @{ Name = 'HOST';   Width = 22 }
         @{ Name = 'OS';     Width = 7 }
-        @{ Name = 'IP';   Width = 15 }
-        @{ Name = 'G6';   Width = 4 }
-        @{ Name = 'RX';     Width = 10 }
+        @{ Name = 'IP';    Width = 15 }
+        @{ Name = 'RX';    Width = 10 }
         @{ Name = 'TX';     Width = 10 }
 
         @{ Name = 'DIAG';   Width = 12 }
@@ -722,8 +677,7 @@ function New-Frame {
             @{ Name = 'HOST';     Width = 20 }
             @{ Name = 'OS';       Width = 7 }
             @{ Name = 'IP';       Width = 15 }
-            @{ Name = 'G6';       Width = 4 }
-            @{ Name = 'LAST';     Width = 16 }
+            @{ Name = 'LAST';      Width = 16 }
             @{ Name = 'ENDPOINT'; Width = 20 }
 
             @{ Name = 'DIAG';     Width = 12 }
@@ -762,7 +716,6 @@ function New-Frame {
         $ip = Get-IPv4Address -Value $peer.TailscaleIPs
         $rx = Format-Bytes -Bytes $peer.RxBytes
         $tx = Format-Bytes -Bytes $peer.TxBytes
-        $globalIPv6 = Get-GlobalIPv6Status -Peer $peer
         $diag = Get-DiagnosticFlags -Peer $peer
 
         if ($Detail) {
@@ -782,7 +735,6 @@ function New-Frame {
                 (Format-Cell -Text $hostName -Width 20),
                 (Format-Cell -Text $os -Width 7),
                 (Format-Cell -Text $ip -Width 15),
-                (Format-Cell -Text $globalIPv6 -Width 4),
                 (Format-Cell -Text $last -Width 16),
                 (Format-Cell -Text $diag -Width 12)
             )
@@ -795,7 +747,6 @@ function New-Frame {
                 (Format-Cell -Text $hostName -Width 22),
                 (Format-Cell -Text $os -Width 7),
                 (Format-Cell -Text $ip -Width 15),
-                (Format-Cell -Text $globalIPv6 -Width 4),
                 (Format-Cell -Text $rx -Width 10),
                 (Format-Cell -Text $tx -Width 10),
                 (Format-Cell -Text $diag -Width 12)
@@ -828,6 +779,11 @@ function New-Frame {
     [void]$frame.Add([pscustomobject]@{
         Text = ('-' * [math]::Min($width, 140))
         Color = 'DarkCyan'
+    })
+
+    [void]$frame.Add([pscustomobject]@{
+        Text = "Local Netcheck | $localIPv6Status"
+        Color = 'Cyan'
     })
 
     return $frame
