@@ -16,7 +16,7 @@
       - Online / Active / Direct / DERP / Peer Relay / SubnetRoutes / ExitCandidates の集計
       - Peer ごとの Online / Active / 接続経路
       - Peer ごとの Tailscale IPv4 アドレス
-      - Peer ごとの RX / TX 通信速度（bit/s）
+      - Peer ごとの通信量（RX / TX）と通信速度（通信量が多い方向のみ、bit/s）
       - ネットワークマップ / MagicSock / WireGuard Engine の不整合
 
     G6 はローカルノードの `tailscale netcheck --format=json` の GlobalV6 を使って
@@ -81,6 +81,42 @@ $script:PreviousStatsTimestamp = $null
 #endregion
 
 #region FORMAT
+function Format-Bytes {
+    param(
+        [AllowNull()]
+        [object]$Bytes
+    )
+
+    if ($null -eq $Bytes) {
+        return '-'
+    }
+
+    try {
+        [double]$value = $Bytes
+    }
+    catch {
+        return '-'
+    }
+
+    if ($value -ge 1TB) {
+        return '{0:N2} TB' -f ($value / 1TB)
+    }
+
+    if ($value -ge 1GB) {
+        return '{0:N2} GB' -f ($value / 1GB)
+    }
+
+    if ($value -ge 1MB) {
+        return '{0:N2} MB' -f ($value / 1MB)
+    }
+
+    if ($value -ge 1KB) {
+        return '{0:N2} KB' -f ($value / 1KB)
+    }
+
+    return '{0:N0} B' -f $value
+}
+
 function Format-BitsPerSecond {
     param(
         [AllowNull()]
@@ -99,18 +135,44 @@ function Format-BitsPerSecond {
     }
 
     if ($value -ge 1Gb) {
-        return '{0:N2} Gbit/s' -f ($value / 1Gb)
+        return '{0:N1}Gbit/s' -f ($value / 1Gb)
     }
 
     if ($value -ge 1Mb) {
-        return '{0:N2} Mbit/s' -f ($value / 1Mb)
+        return '{0:N1}Mbit/s' -f ($value / 1Mb)
     }
 
     if ($value -ge 1Kb) {
-        return '{0:N2} Kbit/s' -f ($value / 1Kb)
+        return '{0:N1}Kbit/s' -f ($value / 1Kb)
     }
 
-    return '{0:N0} bit/s' -f $value
+    return '{0:N0}bit/s' -f $value
+}
+
+function Format-RateDisplay {
+    param(
+        [AllowNull()]
+        [object]$BitsPerSecond,
+
+        [AllowNull()]
+        [string]$Direction
+    )
+
+    $rate = Format-BitsPerSecond -BitsPerSecond $BitsPerSecond
+
+    if ($rate -eq '-') {
+        return '-'
+    }
+
+    if ($Direction -eq 'RX') {
+        return "↓$rate"
+    }
+
+    if ($Direction -eq 'TX') {
+        return "↑$rate"
+    }
+
+    return $rate
 }
 
 function Format-ShortDateTime {
@@ -727,8 +789,9 @@ function New-Frame {
         @{ Name = 'HOST';   Width = 22 }
         @{ Name = 'OS';     Width = 7 }
         @{ Name = 'IP';     Width = 15 }
-        @{ Name = 'RX/s';   Width = 12 }
-        @{ Name = 'TX/s';   Width = 12 }
+        @{ Name = 'RATE';   Width = 12 }
+        @{ Name = 'RX';     Width = 10 }
+        @{ Name = 'TX';     Width = 10 }
 
         @{ Name = 'DIAG';   Width = 12 }
     )
@@ -741,8 +804,9 @@ function New-Frame {
             @{ Name = 'HOST';   Width = 20 }
             @{ Name = 'OS';     Width = 7 }
             @{ Name = 'IP';     Width = 15 }
-            @{ Name = 'RX/s';   Width = 12 }
-            @{ Name = 'TX/s';   Width = 12 }
+            @{ Name = 'RATE';   Width = 12 }
+            @{ Name = 'RX';     Width = 10 }
+            @{ Name = 'TX';     Width = 10 }
             @{ Name = 'LAST';   Width = 16 }
             @{ Name = 'DIAG';   Width = 12 }
         )
@@ -784,27 +848,60 @@ function New-Frame {
         $currentRxBytes = [double]$peer.RxBytes
         $currentTxBytes = [double]$peer.TxBytes
 
-        $rxBitsPerSecond = $null
-        $txBitsPerSecond = $null
+        $rateBitsPerSecond = $null
+        $rateDirection = $null
 
-        if ($sampleElapsedSeconds -gt 0 -and $script:PreviousStats.ContainsKey($rateKey)) {
+        if ($script:PreviousStats.ContainsKey($rateKey)) {
             $previous = $script:PreviousStats[$rateKey]
 
-            if ($currentRxBytes -ge $previous.RxBytes) {
-                $rxBitsPerSecond = (($currentRxBytes - $previous.RxBytes) * 8) / $sampleElapsedSeconds
+            if ($sampleElapsedSeconds -gt 0) {
+                $rxBitsPerSecond = $null
+                $txBitsPerSecond = $null
+
+                if ($currentRxBytes -ge $previous.RxBytes) {
+                    $rxBitsPerSecond = (($currentRxBytes - $previous.RxBytes) * 8) / $sampleElapsedSeconds
+                }
+
+                if ($currentTxBytes -ge $previous.TxBytes) {
+                    $txBitsPerSecond = (($currentTxBytes - $previous.TxBytes) * 8) / $sampleElapsedSeconds
+                }
+
+                if ($null -ne $rxBitsPerSecond -and $null -ne $txBitsPerSecond) {
+                    if ($rxBitsPerSecond -gt $txBitsPerSecond) {
+                        $rateBitsPerSecond = $rxBitsPerSecond
+                        $rateDirection = 'RX'
+                    }
+                    elseif ($txBitsPerSecond -gt $rxBitsPerSecond) {
+                        $rateBitsPerSecond = $txBitsPerSecond
+                        $rateDirection = 'TX'
+                    }
+                }
+                elseif ($null -ne $rxBitsPerSecond) {
+                    $rateBitsPerSecond = $rxBitsPerSecond
+                    $rateDirection = 'RX'
+                }
+                elseif ($null -ne $txBitsPerSecond) {
+                    $rateBitsPerSecond = $txBitsPerSecond
+                    $rateDirection = 'TX'
+                }
             }
 
-            if ($currentTxBytes -ge $previous.TxBytes) {
-                $txBitsPerSecond = (($currentTxBytes - $previous.TxBytes) * 8) / $sampleElapsedSeconds
+            # 新しい通信量が取れなかった場合は、直前に有効だった速度を維持するのじゃ。
+            if ($null -eq $rateBitsPerSecond -and $null -ne $previous.RateBitsPerSecond) {
+                $rateBitsPerSecond = $previous.RateBitsPerSecond
+                $rateDirection = [string]$previous.RateDirection
             }
         }
 
-        $rxRate = Format-BitsPerSecond -BitsPerSecond $rxBitsPerSecond
-        $txRate = Format-BitsPerSecond -BitsPerSecond $txBitsPerSecond
+        $rateDisplay = Format-RateDisplay -BitsPerSecond $rateBitsPerSecond -Direction $rateDirection
+        $rxTotal = Format-Bytes -Bytes $currentRxBytes
+        $txTotal = Format-Bytes -Bytes $currentTxBytes
 
         $currentStats[$rateKey] = [pscustomobject]@{
             RxBytes = $currentRxBytes
             TxBytes = $currentTxBytes
+            RateBitsPerSecond = $rateBitsPerSecond
+            RateDirection = $rateDirection
         }
 
         if ($Detail) {
@@ -824,8 +921,9 @@ function New-Frame {
                 (Format-Cell -Text $hostName -Width 20),
                 (Format-Cell -Text $os -Width 7),
                 (Format-Cell -Text $ip -Width 15),
-                (Format-Cell -Text $rxRate -Width 12),
-                (Format-Cell -Text $txRate -Width 12),
+                (Format-Cell -Text $rateDisplay -Width 12),
+                (Format-Cell -Text $rxTotal -Width 10),
+                (Format-Cell -Text $txTotal -Width 10),
                 (Format-Cell -Text $last -Width 16),
                 (Format-Cell -Text $diag -Width 12)
             )
@@ -838,8 +936,9 @@ function New-Frame {
                 (Format-Cell -Text $hostName -Width 22),
                 (Format-Cell -Text $os -Width 7),
                 (Format-Cell -Text $ip -Width 15),
-                (Format-Cell -Text $rxRate -Width 12),
-                (Format-Cell -Text $txRate -Width 12),
+                (Format-Cell -Text $rateDisplay -Width 12),
+                (Format-Cell -Text $rxTotal -Width 10),
+                (Format-Cell -Text $txTotal -Width 10),
                 (Format-Cell -Text $diag -Width 12)
             )
         }
