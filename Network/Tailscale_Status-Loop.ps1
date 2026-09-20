@@ -469,16 +469,18 @@ function Get-PeerDisplayName {
         [object]$Peer
     )
 
-    $hostName = [string]$Peer.HostName
-    if ([string]::IsNullOrWhiteSpace($hostName)) {
-        $hostName = [string]$Peer.DNSName
+    $dnsName = [string]$Peer.DNSName
+
+    if (-not [string]::IsNullOrWhiteSpace($dnsName)) {
+        $dnsName = $dnsName.TrimEnd('.')
+        $machineName = $dnsName.Split('.')[0]
+
+        if (-not [string]::IsNullOrWhiteSpace($machineName)) {
+            return $machineName
+        }
     }
 
-    if ([string]::IsNullOrWhiteSpace($hostName)) {
-        $hostName = '(unknown)'
-    }
-
-    return $hostName
+    return '(unknown)'
 }
 
 function Get-PeerSortOrder {
