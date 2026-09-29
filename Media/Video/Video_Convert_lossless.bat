@@ -368,8 +368,14 @@ if errorlevel 1 (
         echo    - 処理成功: "!final_output!"
         if "%_session_mpd_mode%"=="yes" (
             rem session.mpdの日付を出力ファイルに引き継ぐ
-            powershell -NoProfile -Command "$s = Get-Item -LiteralPath $env:input_file; $d = Get-Item -LiteralPath $env:final_output; $d.LastWriteTime = $s.LastWriteTime; $d.CreationTime = $s.CreationTime" >nul 2>&1
-            echo    - session.mpdの日付を継承したぞ。
+            powershell -NoProfile -Command "$s = Get-Item -LiteralPath $env:input_file -ErrorAction Stop; $d = Get-Item -LiteralPath $env:final_output -ErrorAction Stop; $d.LastWriteTime = $s.LastWriteTime; $d.CreationTime = $s.CreationTime" >nul 2>&1
+            if errorlevel 1 (
+                echo    - [エラー] 日付の継承に失敗したため、元フォルダは残すぞ。
+                set "_error_occurred=1"
+            ) else (
+                echo    - session.mpdの日付を継承したぞ。
+                if /i "%~nx1"=="session.mpd" call :recycle_session_folder "!parent_dir!"
+            )
         )
     )
     rem =================================================================
@@ -392,10 +398,27 @@ rem 作成した一時フォルダを削除
 rmdir "%TEMP_DIR%" >nul 2>nul
 goto :eof
 
+:recycle_session_folder
+rem 変換済みの session.mpd を含むフォルダだけをゴミ箱へ送る
+if not exist "%~1\session.mpd" (
+    echo    - [エラー] 元フォルダ内に session.mpd がないため、ゴミ箱への移動を中止したぞ。
+    set "_error_occurred=1"
+    goto :eof
+)
+powershell -NoProfile -Command "Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($env:parent_dir, [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs, [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin, [Microsoft.VisualBasic.FileIO.UICancelOption]::ThrowException)" >nul 2>&1
+if errorlevel 1 (
+    echo    - [エラー] 元フォルダをゴミ箱へ移動できなかったぞ: "%~1"
+    set "_error_occurred=1"
+) else (
+    echo    - 元フォルダをゴミ箱へ移動したぞ: "%~1"
+)
+goto :eof
+
 :show_help
 echo.
 echo [概要]
 echo   可逆（映像コピー）主体で動画を再パッケージします。session.mpd を検知した場合は固定設定モードで自動処理。
+echo   session.mpd モードでは正常変換後、元フォルダをゴミ箱へ移動します。
 echo.
 echo [使い方]
 echo   - 通常: %~nx0 ^<file1^> ^<file2^> ...

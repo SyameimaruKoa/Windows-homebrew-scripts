@@ -141,8 +141,14 @@ rem ディレクトリ判定
 set "is_dir=0"
 if exist "!tgt!\" set "is_dir=1"
 
-rem デフォルト名
-for %%F in ("!tgt!") do set "lname=%%~nxF"
+rem デフォルト名（末尾の区切り文字を除いて元の名前を取得）
+set "name_source=!tgt!"
+:trim_name_source
+if "!name_source:~-1!"=="\" (
+  set "name_source=!name_source:~0,-1!"
+  goto :trim_name_source
+)
+for %%F in ("!name_source!") do set "lname=%%~nxF"
 
 rem --- 名前変更確認 (モードによる) ---
 if /i "!mode!"=="skip_ask_name" goto skip_name_input
