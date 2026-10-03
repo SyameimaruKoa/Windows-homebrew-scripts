@@ -121,7 +121,7 @@ try {
         if ($Gui) {
             $scriptPath = $MyInvocation.MyCommand.Path.Replace("'", "''")
             $sid = $identity.User.Value
-            $command = "& '$scriptPath' -Register -Gui -ExpectedUserSid '$sid'"
+            $command = "& '$scriptPath' -Register -ExpectedUserSid '$sid'"
             if (-not [string]::IsNullOrWhiteSpace($DownloadsPath)) {
                 $folder = $DownloadsPath.Replace("'", "''")
                 $command += " -DownloadsPath '$folder'"
@@ -129,9 +129,58 @@ try {
             if ($WhatIfPreference) {
                 $command += ' -WhatIf'
             }
-            $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+            $logDirectory = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'OpenSSHSetup'
+            if (-not (Test-Path -LiteralPath $logDirectory)) {
+                New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
+            }
+            $logPath = Join-Path $logDirectory ((Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N') + '.log')
+            $bootstrap = @'
+$ErrorActionPreference = 'Stop'
+$workerExitCode = 0
+$transcriptStarted = $false
+try {
+    Start-Transcript -LiteralPath '__LOG_PATH__' -Force | Out-Null
+    $transcriptStarted = $true
+    $global:LASTEXITCODE = 0
+    __SCRIPT_COMMAND__
+    if ($LASTEXITCODE -ne 0) {
+        $workerExitCode = $LASTEXITCODE
+    }
+    else {
+        Write-Output 'OPENSSH_SETUP_COMPLETED'
+    }
+}
+catch {
+    $_ | Format-List * -Force | Out-String | Write-Output
+    $workerExitCode = 1
+}
+finally {
+    if ($transcriptStarted) {
+        Stop-Transcript | Out-Null
+    }
+}
+exit $workerExitCode
+'@
+            $bootstrap = $bootstrap.Replace('__LOG_PATH__', $logPath.Replace("'", "''")).Replace('__SCRIPT_COMMAND__', $command)
+            $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($bootstrap))
             $powerShellPath = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-            Start-Process -FilePath $powerShellPath -Verb RunAs -WindowStyle Hidden -ArgumentList @('-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded) | Out-Null
+            $worker = Start-Process -FilePath $powerShellPath -Verb RunAs -WindowStyle Hidden -ArgumentList @('-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded) -Wait -PassThru
+            try {
+                $details = ''
+                if (Test-Path -LiteralPath $logPath) {
+                    $details = Get-Content -LiteralPath $logPath -Raw
+                }
+                if ($worker.ExitCode -ne 0) {
+                    throw "管理者側の処理が終了コード $($worker.ExitCode) で失敗しました。`r`nログ: $logPath`r`n`r`n$details"
+                }
+                if ($details -notmatch 'OPENSSH_SETUP_COMPLETED') {
+                    throw ("管理者側の処理の完了を確認できませんでした。ログ: $logPath" )
+                }
+                [Windows.Forms.MessageBox]::Show("処理が完了しました。`r`nログ: $logPath", 'OpenSSHの設定が完了しました', 'OK', 'Information') | Out-Null
+            }
+            finally {
+                $worker.Dispose()
+            }
             return
         }
         throw '管理者ユーザーの登録にはPowerShellを「管理者として実行」してください。'

@@ -121,7 +121,7 @@ Mobile/         Android・サイドロード
 1. [Enable-OpenSSHServer.ps1](Network/Enable-OpenSSHServer.ps1) — インストール・有効化。必要な管理者承認をWindowsの画面で行います。
 2. [Register-OpenSSHPublicKeys.ps1](Network/Register-OpenSSHPublicKeys.ps1) — Downloadsの公開鍵を登録し、登録済みの元ファイルを削除します。
 
-完了・エラーはダイアログに表示されます。鍵登録の管理者承認は登録するユーザー自身のアカウントで行ってください。別アカウントに切り替わると登録を停止します。
+管理者承認後は処理が終わるまで待ち、完了・エラーをダイアログに表示します。管理者側の実行ログは`%LOCALAPPDATA%\OpenSSHSetup`に保存します。鍵登録の管理者承認は登録するユーザー自身のアカウントで行ってください。別アカウントに切り替わると登録を停止します。
 
 CLIから実行する場合は、次のコマンドも使用できます。
 
