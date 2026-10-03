@@ -8,6 +8,8 @@
     管理者グループのユーザーはProgramData\ssh\administrators_authorized_keysへ登録します。
     この共有ファイルの鍵は他の管理者アカウントでも使用できます。管理者として実行してください。
     その他のユーザーは自身の.ssh\authorized_keysへ登録します。
+    管理者ユーザーのDownloadsに.pubがない場合は、既存の自身の.ssh\authorized_keysから
+    公開鍵を復旧します。復旧元は保持します。鍵オプション付きの行は自動復旧しません。
     Windows標準のsshd_configの登録先を前提とします。独自のAuthorizedKeysFileには対応しません。
     引数なしでは右クリックの「PowerShellで実行」に対応し、結果をダイアログ表示します。
     この起動方法では必要な管理者承認を要求し、別アカウントに切り替わると登録を停止します。
@@ -116,7 +118,12 @@ try {
         throw '別の管理者アカウントに切り替わったため登録を停止しました。登録するユーザー自身のアカウントで実行してください。'
     }
     $principal = New-Object Security.Principal.WindowsPrincipal($identity)
-    $isAdmin = $identity.Groups.Value -contains 'S-1-5-32-544'
+    # 制限されたプロセストークンでは管理者SIDが含まれない場合があるため、
+    # ローカルグループの実際のメンバーも確認する。
+    $administratorMembers = @(Get-LocalGroupMember -SID 'S-1-5-32-544' -ErrorAction Stop)
+    $memberSids = @($identity.User.Value) + @($identity.Groups.Value)
+    $isAdmin = ($identity.Groups.Value -contains 'S-1-5-32-544') -or
+        (@($administratorMembers | Where-Object { $_.SID.Value -in $memberSids }).Count -gt 0)
     if ($isAdmin -and -not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
         if ($Gui) {
             $scriptPath = $MyInvocation.MyCommand.Path.Replace("'", "''")
@@ -193,6 +200,13 @@ exit $workerExitCode
         }
     }
     $files = @(Get-ChildItem -LiteralPath $DownloadsPath -Filter '*.pub' -File)
+    $repairExisting = $false
+    $personalKeys = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.ssh\authorized_keys'
+    if ($files.Count -eq 0 -and $isAdmin -and (Test-Path -LiteralPath $personalKeys -PathType Leaf)) {
+        # 旧版でユーザー用ファイルに登録した鍵を復旧する。復旧元は削除しない。
+        $files = @(Get-Item -LiteralPath $personalKeys -Force)
+        $repairExisting = $true
+    }
     if ($files.Count -eq 0) {
         throw '対象フォルダに*.pub公開鍵ファイルがありません。'
     }
@@ -206,16 +220,26 @@ exit $workerExitCode
         }
         $bytes = [IO.File]::ReadAllBytes($file.FullName)
         $content = $encoding.GetString($bytes).TrimStart([char]0xFEFF).Trim()
-        if ($content -notmatch '\A(ssh-[\w-]+|ecdsa-[\w-]+|sk-[\w@.-]+)\s+([A-Za-z0-9+/]+={0,2})(?:[ \t]+[^\r\n]*)?\z') {
-            throw "1つのOpenSSH公開鍵として読み取れません: $($file.FullName)"
+        $keyLines = @($content)
+        if ($repairExisting) {
+            $keyLines = @($content -split '\r?\n' | Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') })
         }
-        $keyId = $Matches[1] + ' ' + $Matches[2]
-        [IO.File]::WriteAllText($tempKey, $content + "`n", $encoding)
-        & $keygen -l -f $tempKey | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            throw "公開鍵の検証に失敗しました: $($file.FullName)"
+        foreach ($keyLine in $keyLines) {
+            $keyLine = $keyLine.Trim()
+            if ($keyLine -notmatch '\A(ssh-[\w-]+|ecdsa-[\w-]+|sk-[\w@.-]+)\s+([A-Za-z0-9+/]+={0,2})(?:[ \t]+[^\r\n]*)?\z') {
+                throw "OpenSSH公開鍵として読み取れません: $($file.FullName)"
+            }
+            $keyId = $Matches[1] + ' ' + $Matches[2]
+            [IO.File]::WriteAllText($tempKey, $keyLine + "`n", $encoding)
+            & $keygen -l -f $tempKey | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                throw "公開鍵の検証に失敗しました: $($file.FullName)"
+            }
+            $sources += [pscustomobject]@{ Path = $file.FullName; Bytes = $bytes; Content = $keyLine; KeyId = $keyId; DeleteAfterRegistration = (-not $repairExisting) }
         }
-        $sources += [pscustomobject]@{ Path = $file.FullName; Bytes = $bytes; Content = $content; KeyId = $keyId }
+    }
+    if ($sources.Count -eq 0) {
+        throw '登録できる公開鍵がありません。'
     }
     if ($isAdmin) {
         $target = Join-Path $env:ProgramData 'ssh\administrators_authorized_keys'
@@ -259,6 +283,9 @@ exit $workerExitCode
         throw '登録先の保存結果が一致しません。元ファイルは削除しません。'
     }
     foreach ($source in $sources) {
+        if (-not $source.DeleteAfterRegistration) {
+            continue
+        }
         $current = [IO.File]::ReadAllBytes($source.Path)
         if ([Convert]::ToBase64String($current) -cne [Convert]::ToBase64String($source.Bytes)) {
             throw "検証後に元ファイルが変更されました。削除しません: $($source.Path)"
@@ -267,7 +294,8 @@ exit $workerExitCode
         Write-Output "登録済み公開鍵を削除しました: $($source.Path)"
     }
     if ($Gui) {
-        [Windows.Forms.MessageBox]::Show("$($sources.Count)個の公開鍵を登録し、登録済みの元ファイルを削除しました。`r`n登録先: $target", '公開鍵の登録が完了しました', 'OK', 'Information') | Out-Null
+        $deletedCount = @($sources | Where-Object { $_.DeleteAfterRegistration }).Count
+        [Windows.Forms.MessageBox]::Show("$($sources.Count)個の公開鍵を登録しました。`r`n登録済みの元.pubファイルの削除: $deletedCount 個`r`n登録先: $target", '公開鍵の登録が完了しました', 'OK', 'Information') | Out-Null
     }
     else {
         Write-Output "公開鍵の登録先: $target"
