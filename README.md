@@ -116,7 +116,14 @@ Mobile/         Android・サイドロード
 
 ### OpenSSH Serverの設定
 
-管理者としてPowerShellを開き、次の順に実行してください。
+**CLIを開く必要はありません。** 次のファイルを順番に右クリックし、「PowerShellで実行」を選んでください。
+
+1. [Enable-OpenSSHServer.ps1](Network/Enable-OpenSSHServer.ps1) — インストール・有効化。必要な管理者承認をWindowsの画面で行います。
+2. [Register-OpenSSHPublicKeys.ps1](Network/Register-OpenSSHPublicKeys.ps1) — Downloadsの公開鍵を登録し、登録済みの元ファイルを削除します。
+
+完了・エラーはダイアログに表示されます。鍵登録の管理者承認は登録するユーザー自身のアカウントで行ってください。別アカウントに切り替わると登録を停止します。
+
+CLIから実行する場合は、次のコマンドも使用できます。
 
 ```powershell
 .\Network\Enable-OpenSSHServer.ps1 -Enable
@@ -125,10 +132,10 @@ Mobile/         Android・サイドロード
 
 - 有効化スクリプトはWindows標準のOpenSSH Serverをインストールし、sshdの自動起動とTCP 22の受信許可を設定します。既存のsshd_configは保持します。
 - 鍵登録スクリプトは現在のユーザーのDownloads直下にある`*.pub`を検証し、既存の鍵を保持して登録します。保存内容・権限を確認後、元の公開鍵ファイルを削除します。秘密鍵は対象外です。
-- 管理者ユーザーは`%ProgramData%\ssh\administrators_authorized_keys`、一般ユーザーは自身の`.ssh\authorized_keys`へ登録します。管理者用の鍵は管理者アカウント間で共有されます。一般ユーザーは自身の通常権限のPowerShellで鍵登録を実行してください。
+- 管理者ユーザーは`%ProgramData%\ssh\administrators_authorized_keys`、一般ユーザーは自身の`.ssh\authorized_keys`へ登録します。管理者用の鍵は管理者アカウント間で共有されます。一般ユーザーの鍵登録は管理者権限を要求せずに実行します。
 - 別アカウントで「管理者として実行」すると、そのアカウントのDownloadsと登録先が対象です。
 - Downloadsの場所はWindowsの設定から取得します。`-DownloadsPath 'D:\Downloads'`で変更できます。
-- 各スクリプトは引数なし、`-h`、`--help`で詳細ヘルプを表示します。実行引数に`-WhatIf`を追加すると変更予定を確認できます。
+- 各スクリプトは引数なしで実行し、結果をダイアログ表示します。`-h`・`--help`で詳細ヘルプを表示します。CLI用の実行引数に`-WhatIf`を追加すると変更予定を確認できます。
 - Windows PowerShell 5.1以降向けです。公開鍵の検証には`ssh-keygen.exe`が必要です。独自の`AuthorizedKeysFile`設定には対応しません。SSH接続の確認は別途行ってください。
 
 [Microsoft: OpenSSHのインストール](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse) / [公開鍵認証](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_keymanagement)

@@ -9,9 +9,14 @@
     この共有ファイルの鍵は他の管理者アカウントでも使用できます。管理者として実行してください。
     その他のユーザーは自身の.ssh\authorized_keysへ登録します。
     Windows標準のsshd_configの登録先を前提とします。独自のAuthorizedKeysFileには対応しません。
-    別アカウントで昇格すると、そのアカウントが対象になります。
+    引数なしでは右クリックの「PowerShellで実行」に対応し、結果をダイアログ表示します。
+    この起動方法では必要な管理者承認を要求し、別アカウントに切り替わると登録を停止します。
 .PARAMETER Register
-    登録と元ファイルの削除を実行します。引数なしではヘルプを表示します。
+    登録と元ファイルの削除を実行します。引数なしでは実行して結果をダイアログ表示します。
+.PARAMETER Gui
+    結果をダイアログ表示します。引数なしの起動時は自動で有効になります。
+.PARAMETER ExpectedUserSid
+    自動昇格時のアカウント確認用。通常は指定不要です。
 .PARAMETER DownloadsPath
     対象フォルダ。省略すると現在のユーザーのDownloads既知フォルダを取得します。
 .PARAMETER h
@@ -34,6 +39,8 @@
 [CmdletBinding(SupportsShouldProcess = $true)]
 param (
     [switch]$Register,
+    [switch]$Gui,
+    [string]$ExpectedUserSid,
     [string]$DownloadsPath,
     [switch]$h,
     [Alias('-help')]
@@ -42,9 +49,19 @@ param (
 #endregion
 
 #region Help
-if ($h -or $help -or -not $Register) {
+if ($h -or $help) {
     Get-Help $MyInvocation.MyCommand.Path -Full
     return
+}
+#endregion
+
+#region GUI Mode
+if (-not $Register) {
+    $Register = $true
+    $Gui = $true
+}
+if ($Gui) {
+    Add-Type -AssemblyName System.Windows.Forms
 }
 #endregion
 
@@ -95,9 +112,28 @@ $ErrorActionPreference = 'Stop'
 $tempKey = $null
 try {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    if ($ExpectedUserSid -and $identity.User.Value -ne $ExpectedUserSid) {
+        throw '別の管理者アカウントに切り替わったため登録を停止しました。登録するユーザー自身のアカウントで実行してください。'
+    }
     $principal = New-Object Security.Principal.WindowsPrincipal($identity)
     $isAdmin = $identity.Groups.Value -contains 'S-1-5-32-544'
     if ($isAdmin -and -not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        if ($Gui) {
+            $scriptPath = $MyInvocation.MyCommand.Path.Replace("'", "''")
+            $sid = $identity.User.Value
+            $command = "& '$scriptPath' -Register -Gui -ExpectedUserSid '$sid'"
+            if (-not [string]::IsNullOrWhiteSpace($DownloadsPath)) {
+                $folder = $DownloadsPath.Replace("'", "''")
+                $command += " -DownloadsPath '$folder'"
+            }
+            if ($WhatIfPreference) {
+                $command += ' -WhatIf'
+            }
+            $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+            $powerShellPath = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+            Start-Process -FilePath $powerShellPath -Verb RunAs -WindowStyle Hidden -ArgumentList @('-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded) | Out-Null
+            return
+        }
         throw '管理者ユーザーの登録にはPowerShellを「管理者として実行」してください。'
     }
     if ([string]::IsNullOrWhiteSpace($DownloadsPath)) {
@@ -181,10 +217,20 @@ try {
         Remove-Item -LiteralPath $source.Path
         Write-Output "登録済み公開鍵を削除しました: $($source.Path)"
     }
-    Write-Output "公開鍵の登録先: $target"
+    if ($Gui) {
+        [Windows.Forms.MessageBox]::Show("$($sources.Count)個の公開鍵を登録し、登録済みの元ファイルを削除しました。`r`n登録先: $target", '公開鍵の登録が完了しました', 'OK', 'Information') | Out-Null
+    }
+    else {
+        Write-Output "公開鍵の登録先: $target"
+    }
 }
 catch {
-    Write-Error $_
+    if ($Gui) {
+        [Windows.Forms.MessageBox]::Show($_.Exception.Message, '公開鍵の登録に失敗しました', 'OK', 'Error') | Out-Null
+    }
+    else {
+        Write-Error $_
+    }
     exit 1
 }
 finally {
