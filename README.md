@@ -114,6 +114,25 @@ Mobile/         Android・サイドロード
 | [Tool_Compress-with-UPX.ps1](System/Tool_Compress-with-UPX.ps1)           | UPX で .exe を圧縮（バックアップ自動作成）       |
 | [エクスプローラー再起動.bat](System/エクスプローラー再起動.bat)           | Windows エクスプローラーを再起動                 |
 
+### OpenSSH Serverの設定
+
+管理者としてPowerShellを開き、次の順に実行してください。
+
+```powershell
+.\Network\Enable-OpenSSHServer.ps1 -Enable
+.\Network\Register-OpenSSHPublicKeys.ps1 -Register
+```
+
+- 有効化スクリプトはWindows標準のOpenSSH Serverをインストールし、sshdの自動起動とTCP 22の受信許可を設定します。既存のsshd_configは保持します。
+- 鍵登録スクリプトは現在のユーザーのDownloads直下にある`*.pub`を検証し、既存の鍵を保持して登録します。保存内容・権限を確認後、元の公開鍵ファイルを削除します。秘密鍵は対象外です。
+- 管理者ユーザーは`%ProgramData%\ssh\administrators_authorized_keys`、一般ユーザーは自身の`.ssh\authorized_keys`へ登録します。管理者用の鍵は管理者アカウント間で共有されます。一般ユーザーは自身の通常権限のPowerShellで鍵登録を実行してください。
+- 別アカウントで「管理者として実行」すると、そのアカウントのDownloadsと登録先が対象です。
+- Downloadsの場所はWindowsの設定から取得します。`-DownloadsPath 'D:\Downloads'`で変更できます。
+- 各スクリプトは引数なし、`-h`、`--help`で詳細ヘルプを表示します。実行引数に`-WhatIf`を追加すると変更予定を確認できます。
+- Windows PowerShell 5.1以降向けです。公開鍵の検証には`ssh-keygen.exe`が必要です。独自の`AuthorizedKeysFile`設定には対応しません。SSH接続の確認は別途行ってください。
+
+[Microsoft: OpenSSHのインストール](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse) / [公開鍵認証](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_keymanagement)
+
 ### Network — ネットワーク関連
 
 | ファイル                                                           | 説明                                          |
@@ -122,6 +141,8 @@ Mobile/         Android・サイドロード
 | [Remote_Start-Demucs.ps1](Network/Remote_Start-Demucs.ps1)         | リモートで Demucs を起動しトンネル/転送を設定 |
 | [Set-NetworkConfig.ps1](Network/Set-NetworkConfig.ps1)             | ネットワーク設定の適用/変更（GUI）            |
 | [Tailscale_Ping-Loop.ps1](Network/Tailscale_Ping-Loop.ps1)         | Tailscale デバイスへ継続 ping                 |
+| [Enable-OpenSSHServer.ps1](Network/Enable-OpenSSHServer.ps1) | OpenSSH Serverのインストール・自動起動・受信許可 |
+| [Register-OpenSSHPublicKeys.ps1](Network/Register-OpenSSHPublicKeys.ps1) | Downloadsの公開鍵を登録し、登録済みの元ファイルを削除 |
 | [Tailscale_Status-Loop.ps1](Network/Tailscale_Status-Loop.ps1)     | Tailscale の接続状態・通信量・概算速度を1秒周期で表示 |
 | [WiFi_Get-Info.ps1](Network/WiFi_Get-Info.ps1)                     | 現在の Wi-Fi 接続情報を表示                   |
 
