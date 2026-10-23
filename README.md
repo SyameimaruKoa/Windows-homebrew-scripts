@@ -149,10 +149,17 @@ CLIから実行する場合は、次のコマンドも使用できます。
 | [Remote_Start-Demucs.ps1](Network/Remote_Start-Demucs.ps1)         | リモートで Demucs を起動しトンネル/転送を設定 |
 | [Set-NetworkConfig.ps1](Network/Set-NetworkConfig.ps1)             | ネットワーク設定の適用/変更（GUI）            |
 | [Tailscale_Ping-Loop.ps1](Network/Tailscale_Ping-Loop.ps1)         | Tailscale デバイスへ継続 ping                 |
+| [Tailscale_ExitNode-Selector.bat](Network/Tailscale_ExitNode-Selector.bat) | Tailscale Exit Node の一覧表示・選択・有効化・無効化（対話型） |
 | [Enable-OpenSSHServer.ps1](Network/Enable-OpenSSHServer.ps1) | OpenSSH Serverのインストール・自動起動・受信許可 |
 | [Register-OpenSSHPublicKeys.ps1](Network/Register-OpenSSHPublicKeys.ps1) | Downloadsの公開鍵を登録し、登録済みの元ファイルを削除 |
 | [Tailscale_Status-Loop.ps1](Network/Tailscale_Status-Loop.ps1)     | Tailscale の接続状態・通信量・概算速度を1秒周期で表示 |
 | [WiFi_Get-Info.ps1](Network/WiFi_Get-Info.ps1)                     | 現在の Wi-Fi 接続情報を表示                   |
+
+### Tailscale_ExitNode-Selector.bat
+
+`Network/Tailscale_ExitNode-Selector.bat` をダブルクリックすると、現在利用可能な Exit Node の一覧と使用状態が表示されます。番号を選んで有効化・切り替え、`0` で無効化、`R` で再取得、`H` でヘルプを表示します。`-h` / `--help` にも対応しています。
+
+Tailscale のログインと利用可能な Exit Node が必要です。Windows PowerShell（標準搭載）で `tailscale status --json` を解析し、設定変更は `tailscale set` のみを使用します。既存の `Set-TailscaleExitNode.ps1`（SSID による自動切り替え）は変更しません。バッチは Shift-JIS（CP932）で保存しています。
 
 ### Tailscale_Status-Loop.ps1
 
