@@ -165,14 +165,16 @@ CLIから実行する場合は、次のコマンドも使用できます。
 .\Network\Set-TailscaleExitNode.ps1 -TargetSSIDs "Saizeriya_Free","tech-freewifi" -ExitNodeIP "100.113.112.21"
 
 # タスクスケジューラからの実行を想定したコマンド
-powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\kouki\Documents\Windows-homebrew-scripts\Network\Set-TailscaleExitNode.ps1" -TargetSSIDs "Saizeriya_Free,tech-freewifi" -ExitNodeIP "100.113.112.21"
+powershell.exe -NoProfile -NonInteractive -WindowStyle Minimized -ExecutionPolicy Bypass -File "C:\Users\kouki\Documents\Windows-homebrew-scripts\Network\Set-TailscaleExitNode.ps1" -TargetSSIDs "Saizeriya_Free,tech-freewifi" -ExitNodeIP "100.113.112.21"
 ```
 
 **タスクスケジューラの「操作」設定：**
 
 - **プログラム/スクリプト：** `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`
-- **引数の追加：** `-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\kouki\Documents\Windows-homebrew-scripts\Network\Set-TailscaleExitNode.ps1" -TargetSSIDs "Saizeriya_Free,tech-freewifi" -ExitNodeIP "100.113.112.21"`
+- **引数の追加：** `-NoProfile -NonInteractive -WindowStyle Minimized -ExecutionPolicy Bypass -File "C:\Users\kouki\Documents\Windows-homebrew-scripts\Network\Set-TailscaleExitNode.ps1" -TargetSSIDs "Saizeriya_Free,tech-freewifi" -ExitNodeIP "100.113.112.21"`
 - **開始（オプション）：** `C:\Users\kouki\Documents\Windows-homebrew-scripts\Network`
+
+タスクスケジューラの「操作」から直接 `powershell.exe` を起動する場合、`-WindowStyle Minimized` を付けると**タスクからの実行時だけ最小化起動**になります。通常の PowerShell から `.ps1` を直接実行した場合のウィンドウ状態は変わりません。タスクスケジューラの「全般」で「ユーザーがログオンしているときのみ実行する」を選んだ場合、最小化されたウィンドウはユーザーのデスクトップ上に表示されます。「ユーザーがログオンしているかどうかにかかわらず実行する」では通常、画面には表示されません。
 
 `-NoExit` や `cmd.exe /k` を付けると PowerShell / cmd が閉じず、タスクが「実行中」のままになるため使用しません。実行ログは `%ProgramData%\Windows-homebrew-scripts\Logs\Set-TailscaleExitNode.log`（書き込み失敗時は `%TEMP%\Windows-homebrew-scripts`）に記録します。
 
