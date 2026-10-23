@@ -69,6 +69,9 @@ function Invoke-ExternalCommand {
 
     try {
         $process = Start-Process -FilePath $FilePath -ArgumentList $Arguments -NoNewWindow -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath -ErrorAction Stop
+        # Start-Process の NoNewWindow/RedirectStandard* では ExitCode が null になる既知の問題がある。
+        # WaitForExit より前に Handle を取得しておくと ExitCode を正常に参照できる。
+        $processHandle = $process.Handle
 
         if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
             try {
