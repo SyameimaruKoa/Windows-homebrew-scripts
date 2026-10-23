@@ -158,20 +158,31 @@ CLIから実行する場合は、次のコマンドも使用できます。
 
 ### Set-TailscaleExitNode.ps1
 
-現在の Wi-Fi SSID を `netsh wlan show interfaces` で確認し、`-TargetSSIDs` のいずれかに一致すれば指定の Exit Node を有効化、一致しなければ無効化します。`Get-NetConnectionProfile.Name` は使いません。SSID の取得に失敗した場合は安全のため設定を変更せず、原因を表示します。処理後は Tailscale の状態を再取得して確認します。
+現在の Wi-Fi SSID を `netsh wlan show interfaces` で確認して Exit Node を切り替えます。`powershell.exe -File` で配列が1つの文字列として渡される場合にも対応し、カンマ区切りの複数SSIDを認識します。既に希望する Exit Node 状態なら変更を省略します。CLI が停止してもタイムアウトして終了コード `1` を返します。正常終了時は `0` です。
 
 ```powershell
+# PowerShell から直接実行
 .\Network\Set-TailscaleExitNode.ps1 -TargetSSIDs "Saizeriya_Free","tech-freewifi" -ExitNodeIP "100.113.112.21"
-.\Network\Set-TailscaleExitNode.ps1 -h
+
+# タスクスケジューラからの実行を想定したコマンド
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\kouki\Documents\Windows-homebrew-scripts\Network\Set-TailscaleExitNode.ps1" -TargetSSIDs "Saizeriya_Free,tech-freewifi" -ExitNodeIP "100.113.112.21"
 ```
 
-**注意:** 実行した時点で1回だけSSIDを判定します。SSID切り替えを自動監視する常駐スクリプトではありません。Windows 11 では位置情報の設定によってSSIDが取得できないことがあります。
+**タスクスケジューラの「操作」設定：**
+
+- **プログラム/スクリプト：** `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`
+- **引数の追加：** `-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\kouki\Documents\Windows-homebrew-scripts\Network\Set-TailscaleExitNode.ps1" -TargetSSIDs "Saizeriya_Free,tech-freewifi" -ExitNodeIP "100.113.112.21"`
+- **開始（オプション）：** `C:\Users\kouki\Documents\Windows-homebrew-scripts\Network`
+
+`-NoExit` や `cmd.exe /k` を付けると PowerShell / cmd が閉じず、タスクが「実行中」のままになるため使用しません。実行ログは `%ProgramData%\Windows-homebrew-scripts\Logs\Set-TailscaleExitNode.log`（書き込み失敗時は `%TEMP%\Windows-homebrew-scripts`）に記録します。
+
+**注意：** スクリプトの実行時に1回だけSSIDを判定します。SSID変更を常駐監視しません。SSID 自体にカンマがある場合は非対応です。Windows 11 では位置情報設定によりSSID取得が拒否される場合があります。SSIDの取得に失敗した場合は既存の Exit Node 設定を変更しません。
 
 ### Tailscale_ExitNode-Selector.bat
 
 `Network/Tailscale_ExitNode-Selector.bat` をダブルクリックすると、現在利用可能な Exit Node の一覧と使用状態が表示されます。番号を選んで有効化・切り替え、`0` で無効化、`R` で再取得、`H` でヘルプを表示します。`-h` / `--help` にも対応しています。
 
-Tailscale のログインと利用可能な Exit Node が必要です。Windows PowerShell（標準搭載）で `tailscale status --json` を解析し、設定変更は `tailscale set` のみを使用します。既存の `Set-TailscaleExitNode.ps1`（SSID による自動切り替え）は変更しません。バッチは Shift-JIS（CP932）で保存しています。
+Tailscale のログインと利用可能な Exit Node が必要です。Windows PowerShell（標準搭載）で `tailscale status --json` を解析し、設定変更は `tailscale set` のみを使用します。SSID による自動切り替えは `Set-TailscaleExitNode.ps1` で行います。バッチは Shift-JIS（CP932）で保存しています。
 
 ### Tailscale_Status-Loop.ps1
 
