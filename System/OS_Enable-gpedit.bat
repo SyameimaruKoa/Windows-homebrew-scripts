@@ -1,17 +1,16 @@
 @echo off
-rem ä¸‹ã«ãƒ˜ãƒ«ãƒ—ãŒã‚ã‚Šã¾ã™
+rem ‰º‚Éƒwƒ‹ƒv‚ª‚ ‚è‚Ü‚·
+chcp 932 >nul
 if "%1"=="-h" goto help
 if "%1"=="--help" goto help
-if "%1"=="" goto help
 
-chcp 65001
 :Administrator
 net session >NUL 2>nul
 if %errorlevel% neq 0 goto Administratorstart
 goto start
 exit
 :Administratorstart
-echo ã“ã®ãƒãƒƒãƒãƒ•ã‚¡ã‚¤ãƒ«ã¯ä¸€èˆ¬ãƒ¦ãƒ¼ã‚¶ãƒ¼ã«ã¯å¯¾å¿œã—ã¦ã„ãªã„ã®ã§ç®¡ç†è€…æ¨©é™ã‚’è¦æ±‚ã—ã¦å†èµ·å‹•ã—ã¾ã™
+echo ‚±‚Ìƒoƒbƒ`ƒtƒ@ƒCƒ‹‚Íˆê”Êƒ†[ƒU[‚É‚Í‘Î‰‚µ‚Ä‚¢‚È‚¢‚Ì‚ÅŠÇ—ÒŒ ŒÀ‚ğ—v‹‚µ‚ÄÄ‹N“®‚µ‚Ü‚·
 where sudo >NUL 2>nul
 if not errorlevel 1 (
   sudo "%~f0" %*
@@ -22,9 +21,9 @@ if not errorlevel 1 (
   gsudo "%~f0" %*
   exit /b
 )
-@powershell start-process powershell %~0 -verb runas
+powershell.exe -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
 if %errorlevel%==1 (
-  echo æ¨©é™è¦æ±‚ã‚’æ‹’å¦ã•ã‚ŒãŸã®ã§å†åº¦è¦æ±‚ã—ã¾ã™ã€‚
+  echo Œ ŒÀ—v‹‚ğ‹‘”Û‚³‚ê‚½‚Ì‚ÅÄ“x—v‹‚µ‚Ü‚·B
   goto Administrator
 )
 exit
@@ -42,15 +41,16 @@ exit
 
 :help
 echo.
-echo Windows Home Editionã§ãƒ­ãƒ¼ã‚«ãƒ«ã‚°ãƒ«ãƒ¼ãƒ—ãƒãƒªã‚·ãƒ¼ã‚¨ãƒ‡ã‚£ã‚¿ãƒ¼(gpedit.msc)ã‚’æœ‰åŠ¹ã«ã—ã¾ã™ã€‚
+echo Windows Home Edition‚Åƒ[ƒJƒ‹ƒOƒ‹[ƒvƒ|ƒŠƒV[ƒGƒfƒBƒ^[(gpedit.msc)‚ğ—LŒø‚É‚µ‚Ü‚·B
 echo.
-echo ä½¿ã„æ–¹:
-echo  %~n0 [å¼•æ•°]
+echo g‚¢•û:
+echo  %~nx0
+echo  %~nx0 -h
+echo  %~nx0 --help
 echo.
-echo  ä½•ã‹ã—ã‚‰ã®å¼•æ•°ã‚’æŒ‡å®šã—ã¦å®Ÿè¡Œã—ã¦ãã ã•ã„ã€‚
-echo  ä¾‹: %~n0 start
+echo  ˆø”‚È‚µ‚ÅŠÇ—ÒŒ ŒÀ‚ğŠm”F‚µAgpedit.msc ‚Ì—LŒø‰»‚ğŠJn‚µ‚Ü‚·B
 echo.
-echo  -h, --help  ã“ã®ãƒ˜ãƒ«ãƒ—ã‚’è¡¨ç¤ºã—ã¾ã™ã€‚
+echo  -h, --help  ‚±‚Ìƒwƒ‹ƒv‚ğ•\¦‚µ‚Ü‚·B
 echo.
 pause
 exit /b
