@@ -149,12 +149,38 @@ CLIから実行する場合は、次のコマンドも使用できます。
 | [Remote_Start-Demucs.ps1](Network/Remote_Start-Demucs.ps1)         | リモートで Demucs を起動しトンネル/転送を設定 |
 | [Set-NetworkConfig.ps1](Network/Set-NetworkConfig.ps1)             | ネットワーク設定の適用/変更（GUI）            |
 | [Set-TailscaleExitNode.ps1](Network/Set-TailscaleExitNode.ps1) | Wi-Fi の実 SSID に応じた Tailscale Exit Node の自動設定（実行時に1回判定） |
+| [Disable-TailscaleExitNode-OnShutdown.ps1](Network/Disable-TailscaleExitNode-OnShutdown.ps1) | Windows シャットダウン時に利用中の Exit Node を解除（グループポリシーへの登録が必要） |
 | [Tailscale_Ping-Loop.ps1](Network/Tailscale_Ping-Loop.ps1)         | Tailscale デバイスへ継続 ping                 |
 | [Tailscale_ExitNode-Selector.bat](Network/Tailscale_ExitNode-Selector.bat) | Tailscale Exit Node の一覧表示・選択・有効化・無効化（対話型） |
 | [Enable-OpenSSHServer.ps1](Network/Enable-OpenSSHServer.ps1) | OpenSSH Serverのインストール・自動起動・受信許可 |
 | [Register-OpenSSHPublicKeys.ps1](Network/Register-OpenSSHPublicKeys.ps1) | Downloadsの公開鍵を登録し、登録済みの元ファイルを削除 |
 | [Tailscale_Status-Loop.ps1](Network/Tailscale_Status-Loop.ps1)     | Tailscale の接続状態・通信量・概算速度を1秒周期で表示 |
 | [WiFi_Get-Info.ps1](Network/WiFi_Get-Info.ps1)                     | 現在の Wi-Fi 接続情報を表示                   |
+
+### Disable-TailscaleExitNode-OnShutdown.ps1
+
+Windows のシャットダウン・再起動時に `tailscale set --exit-node=` で**このPCが利用する Exit Node**を解除し、次回起動時に前回のExit Node設定が残る事故を防ぐためのスクリプトです。**Exit Node としての広告・提供を停止する処理ではありません。** SSID 切り替えなどの既存スクリプトは変更しません。
+
+**導入手順（Windows Pro、ローカルグループポリシー）：**
+
+1. `Win + R` → `gpedit.msc` を開く。
+2. `コンピューターの構成` → `Windows の設定` → `スクリプト（スタートアップ/シャットダウン）` → `シャットダウン` を開く。
+3. **「PowerShell スクリプト」タブ**の「追加」を選び、`Network/Disable-TailscaleExitNode-OnShutdown.ps1` の**ローカルファイルのフルパス**を指定する。パラメーターは通常不要。
+4. シャットダウン前に PowerShell で下記の手動テストを実行し、解除結果・ログを確認する（実際に Exit Node が解除されます）。
+5. グループポリシーのシャットダウンスクリプトは **Local System (SYSTEM)** で動く。Tailscale 側の **Run unattended（無人モード）** を有効にし、再起動後に下記のログで動作確認する。
+
+```powershell
+# 手動テスト（実行すると現在の Exit Node を無効化する）
+.\Network\Disable-TailscaleExitNode-OnShutdown.ps1
+
+# 詳細ヘルプ
+.\Network\Disable-TailscaleExitNode-OnShutdown.ps1 -h
+```
+
+- 解除と状態確認はTailscale CLIを使い、各CLIには既定8秒のタイムアウトを設けます。成功で終了コード `0`、失敗で `1` を返します。終了時に入力待ちはしません。
+- ログ: `%ProgramData%\Windows-homebrew-scripts\Logs\Disable-TailscaleExitNode-OnShutdown.log`（書き込めない場合は実行アカウントの `%TEMP%\Windows-homebrew-scripts`）。
+- Windowsのシャットダウン・再起動以外（強制電源断、クラッシュ、スリープ、休止状態）や、Tailscaleサービスが先に停止している場合には解除できないことがあります。したがって**次回起動時の無効状態を完全に保証するものではありません**。
+- Gitから取得した既存ファイルをポリシーにフルパスで登録すれば、以後の `git pull` でスクリプト本体の更新が反映されます（ポリシーの登録自体は一度必要）。
 
 ### Set-TailscaleExitNode.ps1
 
