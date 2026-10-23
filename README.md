@@ -148,12 +148,24 @@ CLIから実行する場合は、次のコマンドも使用できます。
 | [Remote_Reconnect-Demucs.ps1](Network/Remote_Reconnect-Demucs.ps1) | リモートの Demucs 接続を再接続                |
 | [Remote_Start-Demucs.ps1](Network/Remote_Start-Demucs.ps1)         | リモートで Demucs を起動しトンネル/転送を設定 |
 | [Set-NetworkConfig.ps1](Network/Set-NetworkConfig.ps1)             | ネットワーク設定の適用/変更（GUI）            |
+| [Set-TailscaleExitNode.ps1](Network/Set-TailscaleExitNode.ps1) | Wi-Fi の実 SSID に応じた Tailscale Exit Node の自動設定（実行時に1回判定） |
 | [Tailscale_Ping-Loop.ps1](Network/Tailscale_Ping-Loop.ps1)         | Tailscale デバイスへ継続 ping                 |
 | [Tailscale_ExitNode-Selector.bat](Network/Tailscale_ExitNode-Selector.bat) | Tailscale Exit Node の一覧表示・選択・有効化・無効化（対話型） |
 | [Enable-OpenSSHServer.ps1](Network/Enable-OpenSSHServer.ps1) | OpenSSH Serverのインストール・自動起動・受信許可 |
 | [Register-OpenSSHPublicKeys.ps1](Network/Register-OpenSSHPublicKeys.ps1) | Downloadsの公開鍵を登録し、登録済みの元ファイルを削除 |
 | [Tailscale_Status-Loop.ps1](Network/Tailscale_Status-Loop.ps1)     | Tailscale の接続状態・通信量・概算速度を1秒周期で表示 |
 | [WiFi_Get-Info.ps1](Network/WiFi_Get-Info.ps1)                     | 現在の Wi-Fi 接続情報を表示                   |
+
+### Set-TailscaleExitNode.ps1
+
+現在の Wi-Fi SSID を `netsh wlan show interfaces` で確認し、`-TargetSSIDs` のいずれかに一致すれば指定の Exit Node を有効化、一致しなければ無効化します。`Get-NetConnectionProfile.Name` は使いません。SSID の取得に失敗した場合は安全のため設定を変更せず、原因を表示します。処理後は Tailscale の状態を再取得して確認します。
+
+```powershell
+.\Network\Set-TailscaleExitNode.ps1 -TargetSSIDs "Saizeriya_Free","tech-freewifi" -ExitNodeIP "100.113.112.21"
+.\Network\Set-TailscaleExitNode.ps1 -h
+```
+
+**注意:** 実行した時点で1回だけSSIDを判定します。SSID切り替えを自動監視する常駐スクリプトではありません。Windows 11 では位置情報の設定によってSSIDが取得できないことがあります。
 
 ### Tailscale_ExitNode-Selector.bat
 
