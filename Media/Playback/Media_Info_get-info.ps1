@@ -418,8 +418,9 @@ function Show-TelecineAssessment {
 
     $duration = 0.0
     $fps = 0.0
+    $nominalFps = 0.0
     if ($FFprobeExecutable) {
-        $data = & $FFprobeExecutable -v error -select_streams v:0 -show_entries 'format=duration:stream=avg_frame_rate' -of json -i $File
+        $data = & $FFprobeExecutable -v error -select_streams v:0 -show_entries 'format=duration:stream=avg_frame_rate,r_frame_rate' -of json -i $File
         if ($LASTEXITCODE -eq 0 -and $data) {
             try {
                 $meta = ($data -join [Environment]::NewLine) | ConvertFrom-Json
@@ -430,6 +431,10 @@ function Show-TelecineAssessment {
                     $fraction = [string]$meta.streams[0].avg_frame_rate
                     if ($fraction -match '^(\d+)/(\d+)$' -and [double]$Matches[2] -ne 0) {
                         $fps = [double]$Matches[1] / [double]$Matches[2]
+                    }
+                    $nominalFraction = [string]$meta.streams[0].r_frame_rate
+                    if ($nominalFraction -match '^(\d+)/(\d+)$' -and [double]$Matches[2] -ne 0) {
+                        $nominalFps = [double]$Matches[1] / [double]$Matches[2]
                     }
                 }
             }
@@ -557,6 +562,15 @@ function Show-TelecineAssessment {
         else {
             Write-Host '逆テレシネ判定: 保留（不規則な重複または静止場面）' -ForegroundColor Yellow
         }
+        return
+    }
+
+    if (-not $failed -and
+        $progressive -eq $reports.Count -and $interlaced -eq 0 -and
+        $fps -ge 23.9 -and $fps -le 24.1 -and
+        $nominalFps -ge 23.9 -and $nominalFps -le 24.1) {
+        # 既に24pのプログレッシブ映像なら、30p由来の重複除去もfieldmatchも不要。
+        Write-Host '逆テレシネ判定: 不要（23.976/24fpsのプログレッシブ映像。3:2周期も未検出）' -ForegroundColor Green
         return
     }
 
