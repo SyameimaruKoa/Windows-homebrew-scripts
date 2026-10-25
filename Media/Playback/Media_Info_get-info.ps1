@@ -335,6 +335,289 @@ function Invoke-DuplicateScan {
 
 #endregion プログレッシブ映像の重複フレーム解析
 
+#region 逆テレシネの要否判定
+
+function Show-TelecineAssessment {
+    param(
+        [string]$File,
+        [string]$FFmpegExecutable,
+        [string]$FFprobeExecutable,
+        [int]$Frames,
+        [bool]$Full
+    )
+
+    Write-Host ''
+    Write-Host '[ プルダウン・逆テレシネ判定（実映像解析） ]' -ForegroundColor Cyan
+    if (-not $FFmpegExecutable) {
+        Write-Host 'FFmpegがないため解析できないのじゃ。' -ForegroundColor Yellow
+        return
+    }
+
+    $duration = 0.0
+    $fps = 0.0
+    if ($FFprobeExecutable) {
+        $data = & $FFprobeExecutable -v error -select_streams v:0 -show_entries 'format=duration:stream=avg_frame_rate' -of json -i $File
+        if ($LASTEXITCODE -eq 0 -and $data) {
+            try {
+                $meta = ($data -join [Environment]::NewLine) | ConvertFrom-Json
+                if ($meta.format.duration) {
+                    $duration = [double]::Parse([string]$meta.format.duration, [Globalization.CultureInfo]::InvariantCulture)
+                }
+                if ($meta.streams.Count -gt 0) {
+                    $fraction = [string]$meta.streams[0].avg_frame_rate
+                    if ($fraction -match '^(\d+)/(\d+)
+$ffprobePath = Get-Command -Name ffprobe -ErrorAction SilentlyContinue
+$ffmpegPath = Get-Command -Name ffmpeg -ErrorAction SilentlyContinue
+
+if (-not $ffprobePath -and -not $ffmpegPath) {
+    Write-Host "エラー: ffprobe も ffmpeg も見つからんかったぞ！ Pathが通っているか確認せい！" -ForegroundColor Red
+    Read-Host "何かキーを押すと終了する"
+    exit
+}
+
+foreach ($filePath in $filePaths) {
+    if (Test-Path -LiteralPath $filePath -PathType Leaf) {
+        Write-Host "--- $($filePath) の詳細情報 ---" -ForegroundColor Yellow
+
+        # === 通常情報表示 ===
+        Write-Host "[ 通常情報 ]" -ForegroundColor Cyan
+        if ($ffprobePath) {
+            # ffprobeがあればそちらで表示
+            & $ffprobePath.Source -hide_banner -i $filePath
+        }
+        else {
+            # なければffmpegで代用
+            & $ffmpegPath.Source -hide_banner -i $filePath
+        }
+        Write-Host ""
+
+        # === フレームレート詳細表示 (ffprobeがある場合のみ) ===
+        if ($ffprobePath) {
+            Write-Host "[ フレームレート詳細 ]" -ForegroundColor Cyan
+            # ストリーム情報から分数表記のフレームレートを取得
+            $streamInfo = & $ffprobePath.Source -v error -select_streams v:0 -show_entries "stream=r_frame_rate,avg_frame_rate" -of "default=noprint_wrappers=1:nokey=0" -i $filePath
+            Write-Host $streamInfo
+
+            # 最初の10フレームの表示時間を調べてVFRかどうかを判断
+            Write-Host "--- 最初の10フレームの表示時間(秒) ---"
+            $frameDurations = & $ffprobePath.Source -v error -select_streams v:0 -show_entries "frame=duration_time" -of "default=noprint_wrappers=1:nokey=1" -read_intervals "%+#10" -i $filePath
+            Write-Host $frameDurations
+            Write-Host "(ここの値がバラバラなら、それはVFRじゃ)"
+
+            # === 走査方式（インターレース／プログレッシブ） ===
+            Write-Host ""
+            Write-Host "[ 走査方式 ]" -ForegroundColor Cyan
+            # ストリームのフィールド順と、先頭10フレームの走査方式フラグを取得
+            $scanInfoJson = & $ffprobePath.Source -v error -select_streams v:0 -show_entries "stream=field_order:frame=interlaced_frame,top_field_first" -read_intervals "%+#10" -of json -i $filePath
+            $scanInfo = $null
+            if ($LASTEXITCODE -eq 0 -and $scanInfoJson) {
+                try {
+                    $scanInfo = ($scanInfoJson -join "`n") | ConvertFrom-Json
+                }
+                catch {
+                    Write-Host "走査方式の解析に失敗したのじゃ。" -ForegroundColor Yellow
+                }
+            }
+
+            if ($scanInfo -and $scanInfo.streams -and $scanInfo.streams.Count -gt 0) {
+                $fieldOrder = [string]$scanInfo.streams[0].field_order
+                switch ($fieldOrder) {
+                    "progressive" { $streamScan = "プログレッシブ"; break }
+                    "tt"          { $streamScan = "インターレース（TFF：トップフィールド優先）"; break }
+                    "bb"          { $streamScan = "インターレース（BFF：ボトムフィールド優先）"; break }
+                    "tb"          { $streamScan = "インターレース（TB：上位フィールドを先に符号化、下位を先に表示）"; break }
+                    "bt"          { $streamScan = "インターレース（BT：下位フィールドを先に符号化、上位を先に表示）"; break }
+                    default       { $streamScan = "不明"; break }
+                }
+                if (-not $fieldOrder) { $fieldOrder = "unknown" }
+                Write-Host "ストリーム情報: $streamScan (field_order=$fieldOrder)"
+
+                $flaggedFrames = @($scanInfo.frames | Where-Object { $null -ne $_ -and $null -ne $_.interlaced_frame })
+                if ($flaggedFrames.Count -gt 0) {
+                    $interlacedCount = @($flaggedFrames | Where-Object { $_.interlaced_frame -eq 1 }).Count
+                    $progressiveCount = @($flaggedFrames | Where-Object { $_.interlaced_frame -eq 0 }).Count
+                    Write-Host "先頭$($flaggedFrames.Count)フレーム: インターレース $interlacedCount / プログレッシブ $progressiveCount"
+
+                    if ($interlacedCount -gt 0) {
+                        $tffCount = @($flaggedFrames | Where-Object { $_.interlaced_frame -eq 1 -and $_.top_field_first -eq 1 }).Count
+                        $bffCount = @($flaggedFrames | Where-Object { $_.interlaced_frame -eq 1 -and $_.top_field_first -eq 0 }).Count
+                        Write-Host "インターレースフレームのフィールド順: TFF $tffCount / BFF $bffCount"
+                    }
+                    if (($fieldOrder -eq "progressive" -and $interlacedCount -gt 0) -or
+                        ($fieldOrder -in @("tt", "bb", "tb", "bt") -and $progressiveCount -gt 0)) {
+                        Write-Host "注意: ストリーム情報とフレームのフラグに差異があるのじゃ。" -ForegroundColor Yellow
+                    }
+                }
+                else {
+                    Write-Host "フレーム単位の走査方式フラグは取得できなかったのじゃ。"
+                }
+            }
+            else {
+                Write-Host "映像ストリームがないか、走査方式の情報を取得できなかったのじゃ。"
+            }
+            Write-Host "（これはメタデータ／デコード時のフラグで、映像内の縞模様を実測した結果ではないぞ）"
+
+        }
+        else {
+            Write-Host "[ フレームレート詳細 ]" -ForegroundColor DarkGray
+            Write-Host "（ffprobeが見つからんため、このセクションはスキップするのじゃ）"
+            Write-Host "[ 走査方式 ]" -ForegroundColor DarkGray
+            Write-Host "（ffprobeが見つからんため、このセクションはスキップするのじゃ）"
+        }
+
+        Write-Host "======================================================================`n"
+    }
+    else {
+        Write-Host "エラー: `"$($filePath)`" はファイルではない、または見つからんかったぞ。" -ForegroundColor Red
+    }
+}
+
+Write-Host "処理が完了したぞ。Enterキーを押せば閉じるのじゃ。" -ForegroundColor Green
+# CtrlキーやCtrl+Cで閉じないように、Enterのキーダウンだけを終了条件とする
+do {
+    $pressedKey = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown,AllowCtrlC")
+} while ($pressedKey.VirtualKeyCode -ne 13) -and [double]$Matches[2] -ne 0) {
+                        $fps = [double]$Matches[1] / [double]$Matches[2]
+                    }
+                }
+            }
+            catch {
+                Write-Host '再生時間／fpsは取得できなかったため先頭のみ調査するのじゃ。' -ForegroundColor Yellow
+            }
+        }
+    }
+
+    $starts = @(0.0)
+    if (-not $Full -and $fps -gt 0 -and $duration -gt ($Frames / $fps) * 2.5) {
+        $last = [math]::Max(0.0, $duration - ($Frames / $fps) - 1.0)
+        $starts = @(0.0, [math]::Round($last / 2.0, 3), [math]::Round($last, 3))
+    }
+
+    $reports = [System.Collections.Generic.List[object]]::new()
+    $validStarts = [System.Collections.Generic.List[double]]::new()
+    $failed = $false
+    if ($Full) {
+        Write-Host 'モード: 全編解析（GPUデコードなし）' -ForegroundColor Cyan
+        $scan = Invoke-CadenceScan -File $File -FFmpegExecutable $FFmpegExecutable -Start 0 -Frames $Frames -Full $true
+        if ($scan.Success) {
+            foreach ($report in $scan.Reports) { $reports.Add($report) }
+            Write-Host "全編 $($scan.FrameCount) フレームを確認したぞ。"
+        }
+        else {
+            $failed = $true
+        }
+    }
+    else {
+        Write-Host "モード: 簡易解析（最大$($starts.Count)区間 × $Frames フレーム）" -ForegroundColor Cyan
+        $labels = @('冒頭', '中盤', '終盤')
+        for ($i = 0; $i -lt $starts.Count; $i++) {
+            $start = [double]$starts[$i]
+            $label = if ($starts.Count -eq 1) { '冒頭' } else { $labels[$i] }
+            $scan = Invoke-CadenceScan -File $File -FFmpegExecutable $FFmpegExecutable -Start $start -Frames $Frames -Full $false
+            if ($scan.Success -and $scan.Reports.Count -gt 0) {
+                $report = $scan.Reports[0]
+                $reports.Add($report)
+                $validStarts.Add($start)
+                $description = if ($report.Telecine32) { '3:2周期あり' } else { '3:2周期は未検出' }
+                $matching = '{0:P0}' -f $report.Consistency
+                Write-Host "$label : $description / Top=$($report.Top) / Bottom=$($report.Bottom) / 周期一致=$matching"
+            }
+            else {
+                $failed = $true
+                Write-Host "$label : 映像を十分に解析できなかったのじゃ。" -ForegroundColor Yellow
+            }
+        }
+    }
+
+    if ($reports.Count -eq 0) {
+        Write-Host '逆テレシネ判定: 判定不能（有効な解析区間なし）' -ForegroundColor Yellow
+        return
+    }
+
+    $telecine = @($reports | Where-Object { $_.Telecine32 }).Count
+    $progressive = @($reports | Where-Object { $_.Classified -ge 20 -and $_.ProgFraction -ge 0.85 }).Count
+    $interlaced = @($reports | Where-Object { $_.Classified -ge 20 -and $_.ProgFraction -le 0.15 }).Count
+    $top = 0
+    $bottom = 0
+    foreach ($report in $reports) {
+        $top += $report.Top
+        $bottom += $report.Bottom
+    }
+    Write-Host "判定区間=$($reports.Count) / 3:2検出=$telecine / Top反復=$top / Bottom反復=$bottom"
+    Write-Host "実映像の傾向: Progressive優勢=$progressive / Interlaced優勢=$interlaced"
+
+    if ($telecine -gt 0) {
+        if (-not $failed -and $telecine -eq $reports.Count) {
+            Write-Host '逆テレシネ判定: 推奨（全解析区間で3:2周期を検出）' -ForegroundColor Green
+            Write-Host '処理候補: fieldmatch,decimate。縞・フレーム欠落は映像でも確認するのじゃ。'
+        }
+        else {
+            Write-Host '逆テレシネ判定: 混在・要確認（一部区間だけ3:2周期を検出）' -ForegroundColor Yellow
+            Write-Host '注意: 全編への一律decimateは非3:2部分のコマ落ちにつながり得るぞ。'
+        }
+        return
+    }
+
+    if ($progressive -eq $reports.Count -and $fps -ge 29.5 -and $fps -le 30.1) {
+        Write-Host 'プログレッシブ優勢につき、周期的な重複フレームも確認するのじゃ。'
+        $duplicateReports = [System.Collections.Generic.List[object]]::new()
+        if ($Full) {
+            $dup = Invoke-DuplicateScan -File $File -FFmpegExecutable $FFmpegExecutable -Start 0 -Frames $Frames -Full $true
+            if ($dup.Success) {
+                foreach ($report in $dup.Reports) { $duplicateReports.Add($report) }
+            }
+            else { $failed = $true }
+        }
+        else {
+            foreach ($start in $validStarts) {
+                $dup = Invoke-DuplicateScan -File $File -FFmpegExecutable $FFmpegExecutable -Start $start -Frames $Frames -Full $false
+                if ($dup.Success) {
+                    foreach ($report in $dup.Reports) { $duplicateReports.Add($report) }
+                }
+                else { $failed = $true }
+            }
+        }
+        $periodic = @($duplicateReports | Where-Object { $_.Periodic }).Count
+        $drops = 0
+        $checked = 0
+        foreach ($report in $duplicateReports) {
+            $drops += $report.Drops
+            $checked += $report.Frames
+        }
+        Write-Host "重複候補=$drops / $checked、5フレーム周期検出=$periodic / $($duplicateReports.Count)"
+        if ($failed -or $duplicateReports.Count -eq 0) {
+            Write-Host '逆テレシネ判定: 保留（重複解析が不完全）' -ForegroundColor Yellow
+        }
+        elseif ($periodic -eq $duplicateReports.Count) {
+            Write-Host '逆テレシネ判定: フィールド再構成は不要寄り。ただし24p由来の周期重複は除去候補。' -ForegroundColor Yellow
+        }
+        elseif ($periodic -gt 0) {
+            Write-Host '逆テレシネ判定: 保留（区間によって重複周期が異なる）' -ForegroundColor Yellow
+        }
+        elseif ($drops -le [math]::Max(5, $checked * 0.03)) {
+            Write-Host '逆テレシネ判定: 不要寄り（3:2も周期的な重複も見当たらない）' -ForegroundColor Green
+        }
+        else {
+            Write-Host '逆テレシネ判定: 保留（不規則な重複または静止場面）' -ForegroundColor Yellow
+        }
+        return
+    }
+
+    if ($failed) {
+        Write-Host '逆テレシネ判定: 保留（解析できなかった区間あり）' -ForegroundColor Yellow
+    }
+    elseif ($interlaced -eq $reports.Count) {
+        Write-Host '逆テレシネ判定: 不要寄り（3:2周期なし、通常インターレースの可能性）' -ForegroundColor Yellow
+        Write-Host '注意: デインターレースとは別の処理じゃ。2:2プルダウンは判定保留。'
+    }
+    else {
+        Write-Host '逆テレシネ判定: 保留（3:2周期未検出だが走査方式が不明・混在）' -ForegroundColor Yellow
+    }
+    Write-Host 'この判定は映像の特徴からの推定であり、全編解析でも完全保証ではないぞ。'
+}
+
+#endregion 逆テレシネの要否判定
+
 # まずはffprobeかffmpegが使えるか確認するのじゃ
 $ffprobePath = Get-Command -Name ffprobe -ErrorAction SilentlyContinue
 $ffmpegPath = Get-Command -Name ffmpeg -ErrorAction SilentlyContinue
