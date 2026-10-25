@@ -540,6 +540,18 @@ function Show-FFplayVerification {
     $maxHeight = [math]::Max(64, $screenHeight - 80)
     $fitScreen = "scale='min($maxWidth,iw)':'min($maxHeight,ih)':force_original_aspect_ratio=decrease"
 
+    # 映像ストリームに記録された公称fps（FFplayの実描画fpsではない）
+    $inputFps = 0.0
+    if ($FFprobeExecutable) {
+        $fpsData = & $FFprobeExecutable -v error -select_streams v:0 -show_entries stream=avg_frame_rate -of 'default=noprint_wrappers=1:nokey=1' -i $VideoPath
+        if ($LASTEXITCODE -eq 0 -and $fpsData) {
+            $fpsValue = [string](@($fpsData)[0])
+            if ($fpsValue -match '^(\d+)/(\d+)$' -and [double]$Matches[2] -gt 0) {
+                $inputFps = [double]$Matches[1] / [double]$Matches[2]
+            }
+        }
+    }
+
     # PowerShellの引用符で囲み、空白・角括弧・シングルクォートを含むパスにも対応
     $quotedPath = "'" + $VideoPath.Replace("'", "''") + "'"
 
@@ -548,21 +560,25 @@ function Show-FFplayVerification {
             Name = '1. 元映像（フィルターなし）'
             Title = '原本'
             Filter = ''
+            RateMultiplier = 1.0
         },
         [pscustomobject]@{
             Name = '2. 逆テレシネのみ（fieldmatch + decimate）'
             Title = '逆テレシネのみ'
             Filter = 'fieldmatch=order=tff,decimate'
+            RateMultiplier = 0.8
         },
         [pscustomobject]@{
             Name = '3. デインターレースのみ（Bwdif / 入力1フレームにつき出力1フレーム）'
             Title = 'Bwdifのみ'
             Filter = 'bwdif=mode=send_frame:parity=tff:deint=interlaced'
+            RateMultiplier = 1.0
         },
         [pscustomobject]@{
             Name = '4. 逆テレシネ + 縞が残るフレームだけBwdif'
             Title = '逆テレシネ+Bwdif'
             Filter = 'fieldmatch=order=tff:combmatch=full,bwdif=mode=send_frame:parity=tff:deint=interlaced,decimate'
+            RateMultiplier = 0.8
         }
     )
 
@@ -570,15 +586,27 @@ function Show-FFplayVerification {
     Write-Host '[ FFplay確認用コマンド（PowerShellにコピーして実行） ]' -ForegroundColor Cyan
     Write-Host "再生ウィンドウ: Media_Action_play.batと同じ画面内に収める設定（画面の余白 40×80）"
     foreach ($test in $tests) {
-        $filter = if ($test.Filter) { "$($test.Filter),$fitScreen" } else { $fitScreen }
+        $label = $test.Title
+        $caption = 'Frame %{n}'
+        if ($inputFps -gt 0) {
+            $expectedFps = ($inputFps * $test.RateMultiplier).ToString('0.###', [Globalization.CultureInfo]::InvariantCulture)
+            $label += " [$expectedFps fps]"
+            $caption = "Expected $expectedFps fps  Frame %{n}"
+        }
+
+        # 描画FPSの実測ではなくフィルター後の公称値。コマ送りで追えるフレーム番号も併記。
+        $textOverlay = "drawtext=text='$caption':x=10:y=10:fontsize=22:fontcolor=white:box=1:boxcolor=black@0.65"
+        $filter = if ($test.Filter) { "$($test.Filter),$fitScreen,$textOverlay" } else { "$fitScreen,$textOverlay" }
         $command = 'ffplay -hide_banner -an -sn -window_title ' +
-            "'" + $test.Title + "'" +
+            "'" + $label + "'" +
             ' -vf "' + $filter + '" -i ' + $quotedPath
 
         Write-Host $test.Name -ForegroundColor DarkCyan
         Write-Host $command
     }
 
+    Write-Host '表示するFPSはフィルター後の想定値であり、画面への実描画FPSの計測ではないぞ。'
+    Write-Host 'Frame番号はフィルター後のフレーム番号（0始まり）じゃ。'
     Write-Host ''
     Write-Host 'コマ送り: FFplayウィンドウを選択して S キー（1フレーム進めて停止。繰り返し押せる）'
     Write-Host 'Space/P: 再生・一時停止 | 左右キー: ±10秒 | Q/Esc: 終了'
