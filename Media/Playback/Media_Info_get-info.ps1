@@ -246,6 +246,95 @@ function Invoke-CadenceScan {
 
 #endregion 3:2プルダウン解析
 
+#region プログレッシブ映像の重複フレーム解析
+
+function New-DuplicateChunk {
+    return [pscustomobject]@{
+        Frames = 0
+        Drops = [System.Collections.Generic.List[int]]::new()
+    }
+}
+
+function Complete-DuplicateChunk {
+    param($Chunk)
+
+    $phase = Get-PeriodicPhase -Positions $Chunk.Drops.ToArray()
+    $fraction = if ($Chunk.Frames -gt 0) {
+        $Chunk.Drops.Count / [double]$Chunk.Frames
+    }
+    else {
+        0.0
+    }
+    return [pscustomobject]@{
+        Frames = $Chunk.Frames
+        Drops = $Chunk.Drops.Count
+        Periodic = (
+            $Chunk.Frames -ge 50 -and
+            $Chunk.Drops.Count -ge 6 -and
+            $fraction -ge 0.10 -and
+            $fraction -le 0.35 -and
+            $phase.Match -ge 0.80
+        )
+        Match = $phase.Match
+    }
+}
+
+function Invoke-DuplicateScan {
+    param(
+        [string]$File,
+        [string]$FFmpegExecutable,
+        [double]$Start,
+        [int]$Frames,
+        [bool]$Full
+    )
+
+    $maxChunk = if ($Full) { 300 } else { $Frames }
+    $state = [pscustomobject]@{
+        Chunk = (New-DuplicateChunk)
+        Reports = [System.Collections.Generic.List[object]]::new()
+        FrameCount = [long]0
+    }
+    $arguments = @('-hide_banner', '-loglevel', 'debug', '-nostats', '-nostdin')
+    if (-not $Full -and $Start -gt 0) {
+        $arguments += @('-ss', $Start.ToString('0.000', [Globalization.CultureInfo]::InvariantCulture))
+    }
+    $filter = if ($Full) { 'mpdecimate' } else { "trim=end_frame=$Frames,mpdecimate" }
+    $arguments += @('-i', $File, '-map', '0:v:0', '-vf', $filter, '-an', '-sn', '-dn', '-f', 'null', 'NUL')
+
+    & $FFmpegExecutable @arguments 2>&1 | ForEach-Object {
+        $line = [string]$_
+        if ($line -match '\[Parsed_mpdecimate_[^\]]+\].*\b(drop|keep)\s+pts:') {
+            if ($state.Chunk.Frames -ge $maxChunk) {
+                $state.Reports.Add((Complete-DuplicateChunk -Chunk $state.Chunk))
+                $state.Chunk = New-DuplicateChunk
+            }
+            if ($Matches[1] -eq 'drop') {
+                $state.Chunk.Drops.Add([int]$state.Chunk.Frames)
+            }
+            $state.Chunk.Frames++
+            $state.FrameCount++
+            if ($Full -and ($state.FrameCount % 900 -eq 0)) {
+                Write-Progress -Activity '全編の重複フレームを解析中' -Status "$($state.FrameCount) フレーム完了"
+            }
+        }
+    }
+    $scanExitCode = $LASTEXITCODE
+    if ($Full) {
+        Write-Progress -Activity '全編の重複フレームを解析中' -Completed
+    }
+    if ($state.Chunk.Frames -gt 0) {
+        $state.Reports.Add((Complete-DuplicateChunk -Chunk $state.Chunk))
+    }
+    return [pscustomobject]@{
+        Success = ($scanExitCode -eq 0 -and $state.FrameCount -ge 50)
+        ExitCode = $scanExitCode
+        FrameCount = $state.FrameCount
+        Reports = @($state.Reports.ToArray() | Where-Object { $_.Frames -ge 50 })
+    }
+}
+
+#endregion プログレッシブ映像の重複フレーム解析
+
 # まずはffprobeかffmpegが使えるか確認するのじゃ
 $ffprobePath = Get-Command -Name ffprobe -ErrorAction SilentlyContinue
 $ffmpegPath = Get-Command -Name ffmpeg -ErrorAction SilentlyContinue
