@@ -135,5 +135,8 @@ foreach ($filePath in $filePaths) {
     }
 }
 
-Write-Host "処理が完了したぞ。何かキーを押せば閉じるのじゃ。" -ForegroundColor Green
-[void]$Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+Write-Host "処理が完了したぞ。Enterキーを押せば閉じるのじゃ。" -ForegroundColor Green
+# CtrlキーやCtrl+Cで閉じないように、Enterのキーダウンだけを終了条件とする
+do {
+    $pressedKey = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown,AllowCtrlC")
+} while ($pressedKey.VirtualKeyCode -ne 13)
