@@ -619,7 +619,7 @@ function Show-FFplayVerification {
         $button.Add_Click({
             param($sender, $eventArgs)
             # 元のログへffplayの出力を混ぜないよう別ターミナルで起動
-            Start-Process -FilePath 'powershell.exe' -ArgumentList ("-NoProfile -NoExit -EncodedCommand " + [string]$sender.Tag) -WindowStyle Normal
+            Start-Process -FilePath 'powershell.exe' -ArgumentList ("-NoProfile -EncodedCommand " + [string]$sender.Tag) -WindowStyle Normal
         })
         $form.Controls.Add($button)
         $index++
