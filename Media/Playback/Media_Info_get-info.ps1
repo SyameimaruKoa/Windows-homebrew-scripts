@@ -38,7 +38,7 @@
 
 .EXAMPLE
     PS> .\Media_Info_get-info.ps1 -AnalysisFrames 300 '.\動画[01].mkv'
-    冒頭・中盤・終盤を各300フレーム解析します。
+    動画全体の約25%・75%地点を中心に各300フレーム解析します。
 
 .EXAMPLE
     PS> .\Media_Info_get-info.ps1 -SkipCadenceAnalysis '.\動画[01].mkv'
@@ -446,8 +446,13 @@ function Show-TelecineAssessment {
 
     $starts = @(0.0)
     if (-not $Full -and $fps -gt 0 -and $duration -gt ($Frames / $fps) * 2.5) {
-        $last = [math]::Max(0.0, $duration - ($Frames / $fps) - 1.0)
-        $starts = @(0.0, [math]::Round($last / 2.0, 3), [math]::Round($last, 3))
+        # 冒頭・中央・終盤ではなく、前半と後半の中間（約25%、75%）を解析する。
+        # -ss は解析区間の開始位置なので、各地点が区間の中央になるよう補正する。
+        $windowSeconds = $Frames / $fps
+        $latestStart = [math]::Max(0.0, $duration - $windowSeconds - 1.0)
+        $firstStart = [math]::Min($latestStart, [math]::Max(0.0, $duration * 0.25 - $windowSeconds / 2.0))
+        $secondStart = [math]::Min($latestStart, [math]::Max(0.0, $duration * 0.75 - $windowSeconds / 2.0))
+        $starts = @([math]::Round($firstStart, 3), [math]::Round($secondStart, 3))
     }
 
     $reports = [System.Collections.Generic.List[object]]::new()
@@ -466,7 +471,7 @@ function Show-TelecineAssessment {
     }
     else {
         Write-Host "モード: 簡易解析（最大$($starts.Count)区間 × $Frames フレーム）" -ForegroundColor Cyan
-        $labels = @('冒頭', '中盤', '終盤')
+        $labels = @('前半中間（約25%）', '後半中間（約75%）')
         for ($i = 0; $i -lt $starts.Count; $i++) {
             $start = [double]$starts[$i]
             $label = if ($starts.Count -eq 1) { '冒頭' } else { $labels[$i] }
