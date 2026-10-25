@@ -11,6 +11,7 @@
     先頭10フレームの走査方式フラグも表示します。
     FFmpegで複数区間の3:2プルダウン周期を解析し、逆テレシネの要否を推定します。
     Shift起動または -FullAnalysis で全編解析します。
+    FFplayで元映像・逆テレシネ・Bwdif・両方を比較できるコマンドを表示します。
 
 .PARAMETER filePaths
     情報を表示したいメディアファイルのパスを1つ以上指定します。
@@ -507,6 +508,87 @@ function Show-TelecineAssessment {
 
 #endregion 逆テレシネの要否判定
 
+#region FFplayによるフィルター確認
+
+function Show-FFplayVerification {
+    param(
+        [string]$VideoPath,
+        [string]$FFprobeExecutable
+    )
+
+    # 音声のみのファイルに映像フィルターの確認コマンドは表示しない
+    if ($FFprobeExecutable) {
+        $videoStream = & $FFprobeExecutable -v error -select_streams v:0 -show_entries stream=index -of 'csv=p=0' -i $VideoPath
+        if ($LASTEXITCODE -eq 0 -and -not $videoStream) {
+            return
+        }
+    }
+
+    # Media_Action_play.bat の既定（画面に収めるモード）と同じ余白・縮小方法
+    $screenWidth = 1920
+    $screenHeight = 1080
+    try {
+        Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
+        $workingArea = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+        $screenWidth = $workingArea.Width
+        $screenHeight = $workingArea.Height
+    }
+    catch {
+        # 画面領域を取得できない場合は再生スクリプトと同じ既定値を使用
+    }
+    $maxWidth = [math]::Max(64, $screenWidth - 40)
+    $maxHeight = [math]::Max(64, $screenHeight - 80)
+    $fitScreen = "scale='min($maxWidth,iw)':'min($maxHeight,ih)':force_original_aspect_ratio=decrease"
+
+    # PowerShellの引用符で囲み、空白・角括弧・シングルクォートを含むパスにも対応
+    $quotedPath = "'" + $VideoPath.Replace("'", "''") + "'"
+
+    $tests = @(
+        [pscustomobject]@{
+            Name = '1. 元映像（フィルターなし）'
+            Title = '原本'
+            Filter = ''
+        },
+        [pscustomobject]@{
+            Name = '2. 逆テレシネのみ（fieldmatch + decimate）'
+            Title = '逆テレシネのみ'
+            Filter = 'fieldmatch=order=tff,decimate'
+        },
+        [pscustomobject]@{
+            Name = '3. デインターレースのみ（Bwdif / 1フレーム出力）'
+            Title = 'Bwdifのみ'
+            Filter = 'bwdif=mode=send_frame:parity=tff:deint=interlaced'
+        },
+        [pscustomobject]@{
+            Name = '4. 逆テレシネ + 縞が残るフレームだけBwdif'
+            Title = '逆テレシネ+Bwdif'
+            Filter = 'fieldmatch=order=tff:combmatch=full,bwdif=mode=send_frame:parity=tff:deint=interlaced,decimate'
+        }
+    )
+
+    Write-Host ''
+    Write-Host '[ FFplay確認用コマンド（PowerShellにコピーして実行） ]' -ForegroundColor Cyan
+    Write-Host "再生ウィンドウ: Media_Action_play.batと同じ画面内に収める設定（画面の余白 40×80）"
+    foreach ($test in $tests) {
+        $filter = if ($test.Filter) { "$($test.Filter),$fitScreen" } else { $fitScreen }
+        $command = 'ffplay -hide_banner -an -sn -window_title ' +
+            "'" + $test.Title + "'" +
+            ' -vf "' + $filter + '" -i ' + $quotedPath
+
+        Write-Host $test.Name -ForegroundColor DarkCyan
+        Write-Host $command
+    }
+
+    Write-Host ''
+    Write-Host 'コマ送り: FFplayウィンドウを選択して S キー（1フレーム進めて停止。繰り返し押せる）'
+    Write-Host 'Space/P: 再生・一時停止 | 左右キー: ±10秒 | Q/Esc: 終了'
+    Write-Host '同じ動きのある場面で元映像と各フィルターを比較するのじゃ。'
+    Write-Host '注意: 逆テレシネ候補を30p/60i素材に使うと、不要なフレーム落ちが発生し得るぞ。'
+    Write-Host '注意: FFplayのフィルター確認はHandBrakeのフィルター挙動と完全には同一でないぞ。'
+}
+
+#endregion FFplayによるフィルター確認
+
 # まずはffprobeかffmpegが使えるか確認するのじゃ
 $ffprobePath = Get-Command -Name ffprobe -ErrorAction SilentlyContinue
 $ffmpegPath = Get-Command -Name ffmpeg -ErrorAction SilentlyContinue
@@ -615,6 +697,8 @@ foreach ($filePath in $filePaths) {
                 Show-TelecineAssessment -File $filePath -FFmpegExecutable $exe -FFprobeExecutable $null -Frames $AnalysisFrames -Full $runFullAnalysis
             }
         }
+
+        Show-FFplayVerification -VideoPath $filePath -FFprobeExecutable $(if ($ffprobePath) { $ffprobePath.Source } else { $null })
 
         Write-Host "======================================================================`n"
     }
