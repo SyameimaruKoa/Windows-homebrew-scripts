@@ -39,7 +39,7 @@ if (-not $ffprobePath -and -not $ffmpegPath) {
 }
 
 foreach ($filePath in $filePaths) {
-    if (Test-Path -Path $filePath -PathType Leaf) {
+    if (Test-Path -LiteralPath $filePath -PathType Leaf) {
         Write-Host "--- $($filePath) の詳細情報 ---" -ForegroundColor Yellow
 
         # === 通常情報表示 ===
