@@ -38,7 +38,7 @@
 
 .EXAMPLE
     PS> .\Media_Info_get-info.ps1 -AnalysisFrames 300 '.\動画[01].mkv'
-    冒頭・中盤・終盤を各300フレーム解析します。
+    動画全体の約25%・75%地点を中心に各300フレーム解析します。
 
 .EXAMPLE
     PS> .\Media_Info_get-info.ps1 -SkipCadenceAnalysis '.\動画[01].mkv'
@@ -259,24 +259,86 @@ function New-DuplicateChunk {
 function Complete-DuplicateChunk {
     param($Chunk)
 
-    $phase = Get-PeriodicPhase -Positions $Chunk.Drops.ToArray()
-    $fraction = if ($Chunk.Frames -gt 0) {
-        $Chunk.Drops.Count / [double]$Chunk.Frames
+    # mpdecimateは静止場面でも連続してdropを出すため、drop位置のmod 5集計だけでは
+    # 24p→30pの規則的な重複が静止場面に埋もれる。5フレーム単位で評価する。
+    $dropPositions = [System.Collections.Generic.HashSet[int]]::new()
+    foreach ($position in $Chunk.Drops) {
+        [void]$dropPositions.Add($position)
     }
-    else {
-        0.0
+
+    $best = [pscustomobject]@{
+        Periodic = $false
+        Match = 0.0
+        CleanCycles = 0
+        ActiveCycles = 0
+        Coverage = 0.0
+        DropPerCycle = 0.0
     }
+
+    # 区間開始位置が5フレーム周期の途中でも検出できるよう、全位相を評価する。
+    for ($offset = 0; $offset -lt 5; $offset++) {
+        $cycles = 0
+        $active = 0
+        $clean = 0
+        $dropSum = 0
+
+        for ($start = $offset; ($start + 5) -le $Chunk.Frames; $start += 5) {
+            $cycleDrops = 0
+            for ($position = $start; $position -lt ($start + 5); $position++) {
+                if ($dropPositions.Contains($position)) {
+                    $cycleDrops++
+                }
+            }
+            $cycles++
+
+            # 3枚以上の重複がある5フレームは静止場面などとして周期判定から外す。
+            if ($cycleDrops -ge 3) {
+                continue
+            }
+
+            $active++
+            $dropSum += $cycleDrops
+            if ($cycleDrops -eq 1) {
+                $clean++
+            }
+        }
+
+        $match = if ($active -gt 0) { $clean / [double]$active } else { 0.0 }
+        $coverage = if ($cycles -gt 0) { $clean / [double]$cycles } else { 0.0 }
+        $dropPerCycle = if ($active -gt 0) { $dropSum / [double]$active } else { 0.0 }
+        $periodic = (
+            $Chunk.Frames -ge 50 -and
+            $clean -ge 8 -and
+            $coverage -ge 0.20 -and
+            $match -ge 0.80 -and
+            $dropPerCycle -ge 0.90 -and
+            $dropPerCycle -le 1.10
+        )
+        $candidate = [pscustomobject]@{
+            Periodic = $periodic
+            Match = $match
+            CleanCycles = $clean
+            ActiveCycles = $active
+            Coverage = $coverage
+            DropPerCycle = $dropPerCycle
+        }
+
+        if (($periodic -and -not $best.Periodic) -or
+            ($periodic -eq $best.Periodic -and $clean -gt $best.CleanCycles) -or
+            ($periodic -eq $best.Periodic -and $clean -eq $best.CleanCycles -and $match -gt $best.Match)) {
+            $best = $candidate
+        }
+    }
+
     return [pscustomobject]@{
         Frames = $Chunk.Frames
         Drops = $Chunk.Drops.Count
-        Periodic = (
-            $Chunk.Frames -ge 50 -and
-            $Chunk.Drops.Count -ge 6 -and
-            $fraction -ge 0.10 -and
-            $fraction -le 0.35 -and
-            $phase.Match -ge 0.80
-        )
-        Match = $phase.Match
+        Periodic = $best.Periodic
+        Match = $best.Match
+        CleanCycles = $best.CleanCycles
+        ActiveCycles = $best.ActiveCycles
+        Coverage = $best.Coverage
+        DropPerCycle = $best.DropPerCycle
     }
 }
 
@@ -356,8 +418,9 @@ function Show-TelecineAssessment {
 
     $duration = 0.0
     $fps = 0.0
+    $nominalFps = 0.0
     if ($FFprobeExecutable) {
-        $data = & $FFprobeExecutable -v error -select_streams v:0 -show_entries 'format=duration:stream=avg_frame_rate' -of json -i $File
+        $data = & $FFprobeExecutable -v error -select_streams v:0 -show_entries 'format=duration:stream=avg_frame_rate,r_frame_rate' -of json -i $File
         if ($LASTEXITCODE -eq 0 -and $data) {
             try {
                 $meta = ($data -join [Environment]::NewLine) | ConvertFrom-Json
@@ -369,6 +432,10 @@ function Show-TelecineAssessment {
                     if ($fraction -match '^(\d+)/(\d+)$' -and [double]$Matches[2] -ne 0) {
                         $fps = [double]$Matches[1] / [double]$Matches[2]
                     }
+                    $nominalFraction = [string]$meta.streams[0].r_frame_rate
+                    if ($nominalFraction -match '^(\d+)/(\d+)$' -and [double]$Matches[2] -ne 0) {
+                        $nominalFps = [double]$Matches[1] / [double]$Matches[2]
+                    }
                 }
             }
             catch {
@@ -379,8 +446,13 @@ function Show-TelecineAssessment {
 
     $starts = @(0.0)
     if (-not $Full -and $fps -gt 0 -and $duration -gt ($Frames / $fps) * 2.5) {
-        $last = [math]::Max(0.0, $duration - ($Frames / $fps) - 1.0)
-        $starts = @(0.0, [math]::Round($last / 2.0, 3), [math]::Round($last, 3))
+        # 冒頭・中央・終盤ではなく、前半と後半の中間（約25%、75%）を解析する。
+        # -ss は解析区間の開始位置なので、各地点が区間の中央になるよう補正する。
+        $windowSeconds = $Frames / $fps
+        $latestStart = [math]::Max(0.0, $duration - $windowSeconds - 1.0)
+        $firstStart = [math]::Min($latestStart, [math]::Max(0.0, $duration * 0.25 - $windowSeconds / 2.0))
+        $secondStart = [math]::Min($latestStart, [math]::Max(0.0, $duration * 0.75 - $windowSeconds / 2.0))
+        $starts = @([math]::Round($firstStart, 3), [math]::Round($secondStart, 3))
     }
 
     $reports = [System.Collections.Generic.List[object]]::new()
@@ -399,7 +471,7 @@ function Show-TelecineAssessment {
     }
     else {
         Write-Host "モード: 簡易解析（最大$($starts.Count)区間 × $Frames フレーム）" -ForegroundColor Cyan
-        $labels = @('冒頭', '中盤', '終盤')
+        $labels = @('前半中間（約25%）', '後半中間（約75%）')
         for ($i = 0; $i -lt $starts.Count; $i++) {
             $start = [double]$starts[$i]
             $label = if ($starts.Count -eq 1) { '冒頭' } else { $labels[$i] }
@@ -470,19 +542,24 @@ function Show-TelecineAssessment {
         $periodic = @($duplicateReports | Where-Object { $_.Periodic }).Count
         $drops = 0
         $checked = 0
+        $cleanCycles = 0
+        $activeCycles = 0
         foreach ($report in $duplicateReports) {
             $drops += $report.Drops
             $checked += $report.Frames
+            $cleanCycles += $report.CleanCycles
+            $activeCycles += $report.ActiveCycles
         }
         Write-Host "重複候補=$drops / $checked、5フレーム周期検出=$periodic / $($duplicateReports.Count)"
+        Write-Host "静止区間を除いた周期: 単一重複=$cleanCycles / 有効周期=$activeCycles"
         if ($failed -or $duplicateReports.Count -eq 0) {
             Write-Host '逆テレシネ判定: 保留（重複解析が不完全）' -ForegroundColor Yellow
         }
         elseif ($periodic -eq $duplicateReports.Count) {
-            Write-Host '逆テレシネ判定: フィールド再構成は不要寄り。ただし24p由来の周期重複は除去候補。' -ForegroundColor Yellow
+            Write-Host '逆テレシネ判定: 24p由来の周期重複候補（Progressive。fieldmatch不要、decimate=cycle=5を確認）' -ForegroundColor Green
         }
         elseif ($periodic -gt 0) {
-            Write-Host '逆テレシネ判定: 保留（区間によって重複周期が異なる）' -ForegroundColor Yellow
+            Write-Host '逆テレシネ判定: 24p由来の周期重複を一部区間で検出（混在・要確認）' -ForegroundColor Yellow
         }
         elseif ($drops -le [math]::Max(5, $checked * 0.03)) {
             Write-Host '逆テレシネ判定: 不要寄り（3:2も周期的な重複も見当たらない）' -ForegroundColor Green
@@ -490,6 +567,15 @@ function Show-TelecineAssessment {
         else {
             Write-Host '逆テレシネ判定: 保留（不規則な重複または静止場面）' -ForegroundColor Yellow
         }
+        return
+    }
+
+    if (-not $failed -and
+        $progressive -eq $reports.Count -and $interlaced -eq 0 -and
+        $fps -ge 23.9 -and $fps -le 24.1 -and
+        $nominalFps -ge 23.9 -and $nominalFps -le 24.1) {
+        # 既に24pのプログレッシブ映像なら、30p由来の重複除去もfieldmatchも不要。
+        Write-Host '逆テレシネ判定: 不要（23.976/24fpsのプログレッシブ映像。3:2周期も未検出）' -ForegroundColor Green
         return
     }
 
@@ -571,18 +657,19 @@ function Show-FFplayVerification {
     $modes = @(
         @{ Name = '1  元映像'; Filter = ''; Rate = 1.0; Bob = $false; Description = '加工しない映像を見て、元の縞模様やカクつきを確認する。' },
         @{ Name = '2  逆テレシネ'; Filter = 'fieldmatch=order=tff,decimate'; Rate = 0.8; Bob = $false; Description = '3:2プルダウンを戻し、約24pの自然な動きを復元できるか確認する。' },
-        @{ Name = '3  Bwdif（30p系 / send_frame）'; Filter = 'bwdif=mode=send_frame:parity=tff:deint=interlaced'; Rate = 1.0; Bob = $false; Description = '1入力フレームから1枚を生成し、約30pのまま縞を取り除く。' },
-        @{ Name = '4  Bwdif Bob（60p系 / send_field）'; Filter = 'bwdif=mode=send_field:parity=tff:deint=interlaced'; Rate = 2.0; Bob = $true; Description = '各フィールドから1枚ずつ生成し、約60pの動きを残せるか確認する。' },
-        @{ Name = '5  逆テレシネ + Bwdif'; Filter = 'fieldmatch=order=tff:combmatch=full,bwdif=mode=send_frame:parity=tff:deint=interlaced,decimate'; Rate = 0.8; Bob = $false; Description = '逆テレシネ後に残る縞も解除し、約24pで自然に再生できるか見る。' },
-        @{ Name = '6  隣接フレームの差分（元映像）'; Filter = 'tblend=all_mode=difference'; Rate = 1.0; Bob = $false; Description = '元の隣接フレームの差分を表示し、縞や画素の変化を調べる。' },
-        @{ Name = '7  隣接フレームの差分（Bob後）'; Filter = 'bwdif=mode=send_field:parity=tff:deint=interlaced,tblend=all_mode=difference'; Rate = 2.0; Bob = $true; Description = 'Bob後の隣接フレームの差分を表示し、点滅や補間差を見る。' }
+        @{ Name = '3  30pの重複を除去（24p系）'; Filter = 'decimate=cycle=5'; Rate = 0.8; Bob = $false; Description = 'プログレッシブ30pの周期重複を除く。フィールド再構成は行わない。' },
+        @{ Name = '4  Bwdif（30p系 / send_frame）'; Filter = 'bwdif=mode=send_frame:parity=tff:deint=interlaced'; Rate = 1.0; Bob = $false; Description = '1入力フレームから1枚を生成し、約30pのまま縞を取り除く。' },
+        @{ Name = '5  Bwdif Bob（60p系 / send_field）'; Filter = 'bwdif=mode=send_field:parity=tff:deint=interlaced'; Rate = 2.0; Bob = $true; Description = '各フィールドから1枚ずつ生成し、約60pの動きを残せるか確認する。' },
+        @{ Name = '6  逆テレシネ + Bwdif'; Filter = 'fieldmatch=order=tff:combmatch=full,bwdif=mode=send_frame:parity=tff:deint=interlaced,decimate'; Rate = 0.8; Bob = $false; Description = '逆テレシネ後に残る縞も解除し、約24pで自然に再生できるか見る。' },
+        @{ Name = '7  隣接フレームの差分（元映像）'; Filter = 'tblend=all_mode=difference'; Rate = 1.0; Bob = $false; Description = '元の隣接フレームの差分を表示し、縞や画素の変化を調べる。' },
+        @{ Name = '8  隣接フレームの差分（Bob後）'; Filter = 'bwdif=mode=send_field:parity=tff:deint=interlaced,tblend=all_mode=difference'; Rate = 2.0; Bob = $true; Description = 'Bob後の隣接フレームの差分を表示し、点滅や補間差を見る。' }
     )
 
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'FFplay比較 - ' + [IO.Path]::GetFileName($VideoPath)
     $form.StartPosition = 'CenterScreen'
-    $form.Size = New-Object System.Drawing.Size(690, 720)
-    $form.MinimumSize = New-Object System.Drawing.Size(690, 720)
+    $form.Size = New-Object System.Drawing.Size(690, 770)
+    $form.MinimumSize = New-Object System.Drawing.Size(690, 770)
     $form.MaximizeBox = $false
 
     $info = New-Object System.Windows.Forms.Label
@@ -599,9 +686,9 @@ function Show-FFplayVerification {
     foreach ($mode in $modes) {
         $suffix = ''
         if ($observedFps -gt 0) {
-            if (($index -eq 1 -or $index -eq 4) -and ($observedFps -lt 29.5 -or $observedFps -gt 30.7)) {
-                # 3:2逆テレシネは元が29.97fps前後の素材でないとfpsを単純計算できない。
-                $suffix = ' | 3:2素材向け'
+            if ($mode.Rate -lt 1.0 -and ($observedFps -lt 29.5 -or $observedFps -gt 30.7)) {
+                # 逆テレシネとプログレッシブ重複除去は30fps前後の素材向け。
+                $suffix = ' | 30fps系素材向け'
             }
             else {
                 $rateValue = ($observedFps * [double]$mode.Rate).ToString('0.###', [Globalization.CultureInfo]::InvariantCulture)
@@ -638,7 +725,7 @@ function Show-FFplayVerification {
     }
 
     $help = New-Object System.Windows.Forms.Label
-    $help.SetBounds(15, 599, 650, 55)
+    $help.SetBounds(15, 665, 650, 55)
     $help.Text = 'S: 1コマ進む　Space: 再生/停止　左右: 10秒移動　Q/Esc: 終了' +
         [Environment]::NewLine +
         '差分は変化が少ないほど暗くなる。静止場面や圧縮ノイズに注意。'
