@@ -9,24 +9,92 @@
     さらに先頭10フレームの表示時間からVFR傾向の目安も併せて表示します。
     また、映像の走査方式（インターレース／プログレッシブ）とフィールド順、
     先頭10フレームの走査方式フラグも表示します。
+    FFmpegで複数区間の3:2プルダウン周期を解析し、逆テレシネの要否を推定します。
+    Shift起動または -FullAnalysis で全編解析します。GPUデコードは使用しません。
 
 .PARAMETER filePaths
     情報を表示したいメディアファイルのパスを1つ以上指定します。
+
+.PARAMETER AnalysisFrames
+    通常解析で各区間から調べるフレーム数（既定180、60～1200）。
+
+.PARAMETER FullAnalysis
+    Shift起動と同様に全編解析を有効化します。
+
+.PARAMETER SkipCadenceAnalysis
+    負荷の大きい実映像解析をスキップします。
+
+.PARAMETER Help
+    詳細な使い方を表示します。-h も使用できます。
 
 .EXAMPLE
     PS> .\Media_Info_get-info.ps1 video.mp4 audio.m4a
     2つのファイルの一般情報と、可能であればフレームレート詳細を表示します。
 
+.EXAMPLE
+    PS> .\Media_Info_get-info.ps1 -FullAnalysis '.\動画[01].m2ts'
+    全フレームを解析します。
+
+.EXAMPLE
+    PS> .\Media_Info_get-info.ps1 -AnalysisFrames 300 '.\動画[01].mkv'
+    冒頭・中盤・終盤を各300フレーム解析します。
+
+.EXAMPLE
+    PS> .\Media_Info_get-info.ps1 -SkipCadenceAnalysis '.\動画[01].mkv'
+    旧来の高速な情報表示だけを行います。
+
+.EXAMPLE
+    PS> .\Media_Info_get-info.ps1 -h
+    ヘルプを表示します。
+
 .NOTES
     ・ffprobe または ffmpeg が PATH に通っている必要があります。
     ・ドラッグ＆ドロップでも実行できます。
+    ・Shiftを押したまま起動すると全編解析します。
+    ・判定はあくまで映像からの推定です。2:2などの完全判定は対象外です。
 #>
 #endregion
 
 param(
-    [Parameter(Mandatory = $true, ValueFromRemainingArguments = $true)]
-    [string[]]$filePaths
+    [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
+    [string[]]$filePaths,
+
+    [ValidateRange(60, 1200)]
+    [int]$AnalysisFrames = 180,
+
+    [switch]$FullAnalysis,
+
+    [switch]$SkipCadenceAnalysis,
+
+    [Alias('h')]
+    [switch]$Help
 )
+
+if ($Help -or -not $filePaths -or $filePaths.Count -eq 0) {
+    Get-Help -Name $PSCommandPath -Detailed
+    return
+}
+
+# 起動直後にShift状態を検出。押し続けられない場合は -FullAnalysis で代用できる。
+$runFullAnalysis = [bool]$FullAnalysis
+if (-not $runFullAnalysis) {
+    try {
+        if (-not ('MediaInfoKeyboard' -as [type])) {
+            Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class MediaInfoKeyboard {
+    [DllImport("user32.dll")]
+    public static extern short GetAsyncKeyState(int virtualKey);
+}
+'@ -ErrorAction Stop
+        }
+        $runFullAnalysis = (([MediaInfoKeyboard]::GetAsyncKeyState(0x10) -band 0x8000) -ne 0)
+    }
+    catch {
+        # Windows以外ではShift検出を省略する
+    }
+}
 
 # まずはffprobeかffmpegが使えるか確認するのじゃ
 $ffprobePath = Get-Command -Name ffprobe -ErrorAction SilentlyContinue
