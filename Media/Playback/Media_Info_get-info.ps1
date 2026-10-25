@@ -555,7 +555,7 @@ function Show-FFplayVerification {
             Filter = 'fieldmatch=order=tff,decimate'
         },
         [pscustomobject]@{
-            Name = '3. デインターレースのみ（Bwdif / 1フレーム出力）'
+            Name = '3. デインターレースのみ（Bwdif / 入力1フレームにつき出力1フレーム）'
             Title = 'Bwdifのみ'
             Filter = 'bwdif=mode=send_frame:parity=tff:deint=interlaced'
         },
