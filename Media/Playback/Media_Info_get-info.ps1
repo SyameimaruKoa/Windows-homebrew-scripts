@@ -96,6 +96,156 @@ public static class MediaInfoKeyboard {
     }
 }
 
+#region 3:2プルダウン解析
+
+function New-CadenceChunk {
+    return [pscustomobject]@{
+        Frames = 0
+        Top = [System.Collections.Generic.List[int]]::new()
+        Bottom = [System.Collections.Generic.List[int]]::new()
+        Progressive = 0
+        Interlaced = 0
+        Unknown = 0
+    }
+}
+
+function Get-PeriodicPhase {
+    param([int[]]$Positions)
+
+    if (-not $Positions -or $Positions.Count -eq 0) {
+        return [pscustomobject]@{ Phase = -1; Match = 0.0 }
+    }
+    $histogram = @(0, 0, 0, 0, 0)
+    foreach ($position in $Positions) {
+        $histogram[$position % 5]++
+    }
+    $best = 0
+    for ($i = 1; $i -lt 5; $i++) {
+        if ($histogram[$i] -gt $histogram[$best]) {
+            $best = $i
+        }
+    }
+    return [pscustomobject]@{
+        Phase = $best
+        Match = ($histogram[$best] / [double]$Positions.Count)
+    }
+}
+
+function Complete-CadenceChunk {
+    param($Chunk)
+
+    $top = $Chunk.Top.Count
+    $bottom = $Chunk.Bottom.Count
+    $repeats = $top + $bottom
+    $phaseTop = Get-PeriodicPhase -Positions $Chunk.Top.ToArray()
+    $phaseBottom = Get-PeriodicPhase -Positions $Chunk.Bottom.ToArray()
+    $consistency = if ($repeats -gt 0) {
+        ($top * $phaseTop.Match + $bottom * $phaseBottom.Match) / $repeats
+    }
+    else {
+        0.0
+    }
+    $gap = ($phaseBottom.Phase - $phaseTop.Phase + 5) % 5
+    $repeatRatio = if ($Chunk.Frames -gt 0) { $repeats / [double]$Chunk.Frames } else { 0.0 }
+    $classified = $Chunk.Progressive + $Chunk.Interlaced
+    $progFraction = if ($classified -gt 0) { $Chunk.Progressive / [double]$classified } else { 0.0 }
+    return [pscustomobject]@{
+        Frames = $Chunk.Frames
+        Top = $top
+        Bottom = $bottom
+        Consistency = $consistency
+        Progressive = $Chunk.Progressive
+        Interlaced = $Chunk.Interlaced
+        Unknown = $Chunk.Unknown
+        Classified = $classified
+        ProgFraction = $progFraction
+        Telecine32 = (
+            $Chunk.Frames -ge 50 -and
+            $top -ge 4 -and
+            $bottom -ge 4 -and
+            $repeatRatio -ge 0.10 -and
+            $repeatRatio -le 0.55 -and
+            $consistency -ge 0.85 -and
+            $gap -in @(2, 3)
+        )
+    }
+}
+
+# 全編解析時は300フレームごとに集計し、ログをメモリに蓄積しない
+function Invoke-CadenceScan {
+    param(
+        [string]$File,
+        [string]$FFmpegExecutable,
+        [double]$Start,
+        [int]$Frames,
+        [bool]$Full
+    )
+
+    $maxChunk = if ($Full) { 300 } else { $Frames }
+    $state = [pscustomobject]@{
+        Chunk = (New-CadenceChunk)
+        Reports = [System.Collections.Generic.List[object]]::new()
+        FrameCount = [long]0
+    }
+    $arguments = @('-hide_banner', '-loglevel', 'info', '-nostats', '-nostdin')
+    if (-not $Full -and $Start -gt 0) {
+        $arguments += @('-ss', $Start.ToString('0.000', [Globalization.CultureInfo]::InvariantCulture))
+    }
+    $arguments += @(
+        '-i', $File, '-map', '0:v:0',
+        '-vf', 'idet,metadata=mode=print:key=lavfi.idet.repeated.current_frame,metadata=mode=print:key=lavfi.idet.multiple.current_frame'
+    )
+    if (-not $Full) {
+        $arguments += @('-frames:v', [string]$Frames)
+    }
+    $arguments += @('-an', '-sn', '-dn', '-f', 'null', 'NUL')
+
+    & $FFmpegExecutable @arguments 2>&1 | ForEach-Object {
+        $line = [string]$_
+        if ($line -match 'lavfi\.idet\.repeated\.current_frame=(neither|top|bottom)') {
+            # 前のフレームの分類が届いてから区間を確定する
+            if ($state.Chunk.Frames -ge $maxChunk) {
+                $state.Reports.Add((Complete-CadenceChunk -Chunk $state.Chunk))
+                $state.Chunk = New-CadenceChunk
+            }
+            if ($Matches[1] -eq 'top') {
+                $state.Chunk.Top.Add([int]$state.Chunk.Frames)
+            }
+            elseif ($Matches[1] -eq 'bottom') {
+                $state.Chunk.Bottom.Add([int]$state.Chunk.Frames)
+            }
+            $state.Chunk.Frames++
+            $state.FrameCount++
+            if ($Full -and ($state.FrameCount % 900 -eq 0)) {
+                Write-Progress -Activity '全編のプルダウン周期を解析中' -Status "$($state.FrameCount) フレーム完了"
+            }
+        }
+        elseif ($line -match 'lavfi\.idet\.multiple\.current_frame=(tff|bff|progressive|undetermined)') {
+            switch ($Matches[1]) {
+                'progressive' { $state.Chunk.Progressive++; break }
+                'tff' { $state.Chunk.Interlaced++; break }
+                'bff' { $state.Chunk.Interlaced++; break }
+                default { $state.Chunk.Unknown++; break }
+            }
+        }
+    }
+    $scanExitCode = $LASTEXITCODE
+    if ($Full) {
+        Write-Progress -Activity '全編のプルダウン周期を解析中' -Completed
+    }
+    if ($state.Chunk.Frames -gt 0) {
+        $state.Reports.Add((Complete-CadenceChunk -Chunk $state.Chunk))
+    }
+    return [pscustomobject]@{
+        Success = ($scanExitCode -eq 0 -and $state.FrameCount -ge 50)
+        ExitCode = $scanExitCode
+        FrameCount = $state.FrameCount
+        Reports = @($state.Reports.ToArray() | Where-Object { $_.Frames -ge 50 })
+    }
+}
+
+#endregion 3:2プルダウン解析
+
 # まずはffprobeかffmpegが使えるか確認するのじゃ
 $ffprobePath = Get-Command -Name ffprobe -ErrorAction SilentlyContinue
 $ffmpegPath = Get-Command -Name ffmpeg -ErrorAction SilentlyContinue
