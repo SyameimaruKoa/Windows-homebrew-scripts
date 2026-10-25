@@ -668,8 +668,8 @@ function Show-FFplayVerification {
         $suffix = ''
         if ($observedFps -gt 0) {
             if ($mode.Rate -lt 1.0 -and ($observedFps -lt 29.5 -or $observedFps -gt 30.7)) {
-                # 3:2逆テレシネは元が29.97fps前後の素材でないとfpsを単純計算できない。
-                $suffix = ' | 3:2素材向け'
+                # 逆テレシネとプログレッシブ重複除去は30fps前後の素材向け。
+                $suffix = ' | 30fps系素材向け'
             }
             else {
                 $rateValue = ($observedFps * [double]$mode.Rate).ToString('0.###', [Globalization.CultureInfo]::InvariantCulture)
