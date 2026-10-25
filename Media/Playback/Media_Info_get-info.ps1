@@ -7,6 +7,8 @@
     指定したメディアファイルごとに、一般情報（hide_banner出力）を表示します。
     ffprobe が利用可能な場合は、r_frame_rate と avg_frame_rate の詳細、
     さらに先頭10フレームの表示時間からVFR傾向の目安も併せて表示します。
+    また、映像の走査方式（インターレース／プログレッシブ）とフィールド順、
+    先頭10フレームの走査方式フラグも表示します。
 
 .PARAMETER filePaths
     情報を表示したいメディアファイルのパスを1つ以上指定します。
@@ -64,9 +66,65 @@ foreach ($filePath in $filePaths) {
             $frameDurations = & $ffprobePath.Source -v error -select_streams v:0 -show_entries "frame=duration_time" -of "default=noprint_wrappers=1:nokey=1" -read_intervals "%+#10" -i $filePath
             Write-Host $frameDurations
             Write-Host "(ここの値がバラバラなら、それはVFRじゃ)"
+
+            # === 走査方式（インターレース／プログレッシブ） ===
+            Write-Host ""
+            Write-Host "[ 走査方式 ]" -ForegroundColor Cyan
+            # ストリームのフィールド順と、先頭10フレームの走査方式フラグを取得
+            $scanInfoJson = & $ffprobePath.Source -v error -select_streams v:0 -show_entries "stream=field_order:frame=interlaced_frame,top_field_first" -read_intervals "%+#10" -of json -i $filePath
+            $scanInfo = $null
+            if ($LASTEXITCODE -eq 0 -and $scanInfoJson) {
+                try {
+                    $scanInfo = ($scanInfoJson -join "`n") | ConvertFrom-Json
+                }
+                catch {
+                    Write-Host "走査方式の解析に失敗したのじゃ。" -ForegroundColor Yellow
+                }
+            }
+
+            if ($scanInfo -and $scanInfo.streams -and $scanInfo.streams.Count -gt 0) {
+                $fieldOrder = [string]$scanInfo.streams[0].field_order
+                switch ($fieldOrder) {
+                    "progressive" { $streamScan = "プログレッシブ"; break }
+                    "tt"          { $streamScan = "インターレース（TFF：トップフィールド優先）"; break }
+                    "bb"          { $streamScan = "インターレース（BFF：ボトムフィールド優先）"; break }
+                    "tb"          { $streamScan = "インターレース（TB：上位フィールドを先に符号化、下位を先に表示）"; break }
+                    "bt"          { $streamScan = "インターレース（BT：下位フィールドを先に符号化、上位を先に表示）"; break }
+                    default       { $streamScan = "不明"; break }
+                }
+                if (-not $fieldOrder) { $fieldOrder = "unknown" }
+                Write-Host "ストリーム情報: $streamScan (field_order=$fieldOrder)"
+
+                $flaggedFrames = @($scanInfo.frames | Where-Object { $null -ne $_ -and $null -ne $_.interlaced_frame })
+                if ($flaggedFrames.Count -gt 0) {
+                    $interlacedCount = @($flaggedFrames | Where-Object { $_.interlaced_frame -eq 1 }).Count
+                    $progressiveCount = @($flaggedFrames | Where-Object { $_.interlaced_frame -eq 0 }).Count
+                    Write-Host "先頭$($flaggedFrames.Count)フレーム: インターレース $interlacedCount / プログレッシブ $progressiveCount"
+
+                    if ($interlacedCount -gt 0) {
+                        $tffCount = @($flaggedFrames | Where-Object { $_.interlaced_frame -eq 1 -and $_.top_field_first -eq 1 }).Count
+                        $bffCount = @($flaggedFrames | Where-Object { $_.interlaced_frame -eq 1 -and $_.top_field_first -eq 0 }).Count
+                        Write-Host "インターレースフレームのフィールド順: TFF $tffCount / BFF $bffCount"
+                    }
+                    if (($fieldOrder -eq "progressive" -and $interlacedCount -gt 0) -or
+                        ($fieldOrder -in @("tt", "bb", "tb", "bt") -and $progressiveCount -gt 0)) {
+                        Write-Host "注意: ストリーム情報とフレームのフラグに差異があるのじゃ。" -ForegroundColor Yellow
+                    }
+                }
+                else {
+                    Write-Host "フレーム単位の走査方式フラグは取得できなかったのじゃ。"
+                }
+            }
+            else {
+                Write-Host "映像ストリームがないか、走査方式の情報を取得できなかったのじゃ。"
+            }
+            Write-Host "（これはメタデータ／デコード時のフラグで、映像内の縞模様を実測した結果ではないぞ）"
+
         }
         else {
             Write-Host "[ フレームレート詳細 ]" -ForegroundColor DarkGray
+            Write-Host "（ffprobeが見つからんため、このセクションはスキップするのじゃ）"
+            Write-Host "[ 走査方式 ]" -ForegroundColor DarkGray
             Write-Host "（ffprobeが見つからんため、このセクションはスキップするのじゃ）"
         }
 
