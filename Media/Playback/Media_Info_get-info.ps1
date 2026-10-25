@@ -11,7 +11,7 @@
     先頭10フレームの走査方式フラグも表示します。
     FFmpegで複数区間の3:2プルダウン周期を解析し、逆テレシネの要否を推定します。
     Shift起動または -FullAnalysis で全編解析します。
-    FFplayで元映像・逆テレシネ・Bwdif・両方を比較できるコマンドを表示します。
+    FFplayで元映像・逆テレシネ・Bwdif・差分を比較する説明付きボタンを表示します。
 
 .PARAMETER filePaths
     情報を表示したいメディアファイルのパスを1つ以上指定します。
@@ -409,7 +409,7 @@ function Show-TelecineAssessment {
                 $reports.Add($report)
                 $validStarts.Add($start)
                 $description = if ($report.Telecine32) { '3:2周期あり' } else { '3:2周期は未検出' }
-                $matching = '{0:P0}' -f $report.Consistency
+                $matching = if (($report.Top + $report.Bottom) -ge 10) { '{0:P0}' -f $report.Consistency } else { '算出保留（反復が少ない）' }
                 Write-Host "$label : $description / Top=$($report.Top) / Bottom=$($report.Bottom) / 周期一致=$matching"
             }
             else {
@@ -448,7 +448,7 @@ function Show-TelecineAssessment {
         return
     }
 
-    if ($progressive -eq $reports.Count -and $fps -ge 29.5 -and $fps -le 30.1) {
+    if ($progressive -ge [math]::Ceiling($reports.Count * 0.8) -and $interlaced -eq 0 -and $fps -ge 29.5 -and $fps -le 30.1) {
         Write-Host 'プログレッシブ優勢につき、周期的な重複フレームも確認するのじゃ。'
         $duplicateReports = [System.Collections.Generic.List[object]]::new()
         if ($Full) {
@@ -569,20 +569,20 @@ function Show-FFplayVerification {
 
     # 確認用フィルターは短く保つ。59.94pと29.97pのBwdifを両方用意。
     $modes = @(
-        @{ Name = '1  元映像'; Filter = ''; Rate = 1.0; Bob = $false },
-        @{ Name = '2  逆テレシネ'; Filter = 'fieldmatch=order=tff,decimate'; Rate = 0.8; Bob = $false },
-        @{ Name = '3  Bwdif（30p系 / send_frame）'; Filter = 'bwdif=mode=send_frame:parity=tff:deint=interlaced'; Rate = 1.0; Bob = $false },
-        @{ Name = '4  Bwdif Bob（60p系 / send_field）'; Filter = 'bwdif=mode=send_field:parity=tff:deint=interlaced'; Rate = 2.0; Bob = $true },
-        @{ Name = '5  逆テレシネ + Bwdif'; Filter = 'fieldmatch=order=tff:combmatch=full,bwdif=mode=send_frame:parity=tff:deint=interlaced,decimate'; Rate = 0.8; Bob = $false },
-        @{ Name = '6  隣接フレームの差分（元映像）'; Filter = 'tblend=all_mode=difference'; Rate = 1.0; Bob = $false },
-        @{ Name = '7  隣接フレームの差分（Bob後）'; Filter = 'bwdif=mode=send_field:parity=tff:deint=interlaced,tblend=all_mode=difference'; Rate = 2.0; Bob = $true }
+        @{ Name = '1  元映像'; Filter = ''; Rate = 1.0; Bob = $false; Description = '加工しない映像を見て、元の縞模様やカクつきを確認する。' },
+        @{ Name = '2  逆テレシネ'; Filter = 'fieldmatch=order=tff,decimate'; Rate = 0.8; Bob = $false; Description = '3:2プルダウンを戻し、約24pの自然な動きを復元できるか確認する。' },
+        @{ Name = '3  Bwdif（30p系 / send_frame）'; Filter = 'bwdif=mode=send_frame:parity=tff:deint=interlaced'; Rate = 1.0; Bob = $false; Description = '1入力フレームから1枚を生成し、約30pのまま縞を取り除く。' },
+        @{ Name = '4  Bwdif Bob（60p系 / send_field）'; Filter = 'bwdif=mode=send_field:parity=tff:deint=interlaced'; Rate = 2.0; Bob = $true; Description = '各フィールドから1枚ずつ生成し、約60pの動きを残せるか確認する。' },
+        @{ Name = '5  逆テレシネ + Bwdif'; Filter = 'fieldmatch=order=tff:combmatch=full,bwdif=mode=send_frame:parity=tff:deint=interlaced,decimate'; Rate = 0.8; Bob = $false; Description = '逆テレシネ後に残る縞も解除し、約24pで自然に再生できるか見る。' },
+        @{ Name = '6  隣接フレームの差分（元映像）'; Filter = 'tblend=all_mode=difference'; Rate = 1.0; Bob = $false; Description = '元の隣接フレームの差分を表示し、縞や画素の変化を調べる。' },
+        @{ Name = '7  隣接フレームの差分（Bob後）'; Filter = 'bwdif=mode=send_field:parity=tff:deint=interlaced,tblend=all_mode=difference'; Rate = 2.0; Bob = $true; Description = 'Bob後の隣接フレームの差分を表示し、点滅や補間差を見る。' }
     )
 
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'FFplay比較 - ' + [IO.Path]::GetFileName($VideoPath)
     $form.StartPosition = 'CenterScreen'
-    $form.Size = New-Object System.Drawing.Size(690, 530)
-    $form.MinimumSize = New-Object System.Drawing.Size(690, 530)
+    $form.Size = New-Object System.Drawing.Size(690, 720)
+    $form.MinimumSize = New-Object System.Drawing.Size(690, 720)
     $form.MaximizeBox = $false
 
     $info = New-Object System.Windows.Forms.Label
@@ -599,13 +599,19 @@ function Show-FFplayVerification {
     foreach ($mode in $modes) {
         $suffix = ''
         if ($observedFps -gt 0) {
-            $rateValue = ($observedFps * [double]$mode.Rate).ToString('0.###', [Globalization.CultureInfo]::InvariantCulture)
-            $suffix = " | 約$rateValue fps"
-            if ($mode.Bob) { $suffix += '（i判定時）' }
+            if (($index -eq 1 -or $index -eq 4) -and ($observedFps -lt 29.5 -or $observedFps -gt 30.7)) {
+                # 3:2逆テレシネは元が29.97fps前後の素材でないとfpsを単純計算できない。
+                $suffix = ' | 3:2素材向け'
+            }
+            else {
+                $rateValue = ($observedFps * [double]$mode.Rate).ToString('0.###', [Globalization.CultureInfo]::InvariantCulture)
+                $suffix = " | 約$rateValue fps"
+                if ($mode.Bob) { $suffix += '（i判定時）' }
+            }
         }
 
         $button = New-Object System.Windows.Forms.Button
-        $button.SetBounds(15, (68 + $index * 50), 650, 40)
+        $button.SetBounds(15, (68 + $index * 74), 650, 32)
         $button.Text = $mode.Name + $suffix
         $button.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
         $button.UseVisualStyleBackColor = $true
@@ -622,11 +628,17 @@ function Show-FFplayVerification {
             Start-Process -FilePath 'powershell.exe' -ArgumentList ("-NoProfile -EncodedCommand " + [string]$sender.Tag) -WindowStyle Normal
         })
         $form.Controls.Add($button)
+
+        # 各ボタンの目的を一文で示す（ツールチップだけに依存しない）。
+        $explanation = New-Object System.Windows.Forms.Label
+        $explanation.SetBounds(28, (103 + $index * 74), 630, 27)
+        $explanation.Text = [string]$mode.Description
+        $form.Controls.Add($explanation)
         $index++
     }
 
     $help = New-Object System.Windows.Forms.Label
-    $help.SetBounds(15, 426, 650, 55)
+    $help.SetBounds(15, 599, 650, 55)
     $help.Text = 'S: 1コマ進む　Space: 再生/停止　左右: 10秒移動　Q/Esc: 終了' +
         [Environment]::NewLine +
         '差分は変化が少ないほど暗くなる。静止場面や圧縮ノイズに注意。'
@@ -677,15 +689,15 @@ foreach ($filePath in $filePaths) {
 
             # 最初の10フレームの表示時間を調べてVFRかどうかを判断
             Write-Host "--- 最初の10フレームの表示時間(秒) ---"
-            $frameDurations = & $ffprobePath.Source -v error -select_streams v:0 -show_entries "frame=duration_time" -of "default=noprint_wrappers=1:nokey=1" -read_intervals "%+#10" -i $filePath
+            $frameDurations = @(& $ffprobePath.Source -v error -select_streams v:0 -show_entries "frame=duration_time" -of "default=noprint_wrappers=1:nokey=1" -read_intervals "%+2" -i $filePath) | Select-Object -First 10
             Write-Host $frameDurations
-            Write-Host "(ここの値がバラバラなら、それはVFRじゃ)"
+            Write-Host "(これはフレームdurationの参考値。VFRの厳密判定にはPTS間隔の確認が必要じゃ)"
 
             # === 走査方式（インターレース／プログレッシブ） ===
             Write-Host ""
             Write-Host "[ 走査方式 ]" -ForegroundColor Cyan
             # ストリームのフィールド順と、先頭10フレームの走査方式フラグを取得
-            $scanInfoJson = & $ffprobePath.Source -v error -select_streams v:0 -show_entries "stream=field_order:frame=interlaced_frame,top_field_first" -read_intervals "%+#10" -of json -i $filePath
+            $scanInfoJson = & $ffprobePath.Source -v error -select_streams v:0 -show_entries "stream=field_order:frame=interlaced_frame,top_field_first" -read_intervals "%+2" -of json -i $filePath
             $scanInfo = $null
             if ($LASTEXITCODE -eq 0 -and $scanInfoJson) {
                 try {
@@ -709,7 +721,7 @@ foreach ($filePath in $filePaths) {
                 if (-not $fieldOrder) { $fieldOrder = "unknown" }
                 Write-Host "ストリーム情報: $streamScan (field_order=$fieldOrder)"
 
-                $flaggedFrames = @($scanInfo.frames | Where-Object { $null -ne $_ -and $null -ne $_.interlaced_frame })
+                $flaggedFrames = @($scanInfo.frames | Select-Object -First 10 | Where-Object { $null -ne $_ -and $null -ne $_.interlaced_frame })
                 if ($flaggedFrames.Count -gt 0) {
                     $interlacedCount = @($flaggedFrames | Where-Object { $_.interlaced_frame -eq 1 }).Count
                     $progressiveCount = @($flaggedFrames | Where-Object { $_.interlaced_frame -eq 0 }).Count
