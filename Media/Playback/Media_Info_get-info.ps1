@@ -10,7 +10,7 @@
     また、映像の走査方式（インターレース／プログレッシブ）とフィールド順、
     先頭10フレームの走査方式フラグも表示します。
     FFmpegで複数区間の3:2プルダウン周期を解析し、逆テレシネの要否を推定します。
-    Shift起動または -FullAnalysis で全編解析します。GPUデコードは使用しません。
+    Shift起動または -FullAnalysis で全編解析します。
 
 .PARAMETER filePaths
     情報を表示したいメディアファイルのパスを1つ以上指定します。
@@ -386,7 +386,7 @@ function Show-TelecineAssessment {
     $validStarts = [System.Collections.Generic.List[double]]::new()
     $failed = $false
     if ($Full) {
-        Write-Host 'モード: 全編解析（GPUデコードなし）' -ForegroundColor Cyan
+        Write-Host 'モード: 全編解析' -ForegroundColor Cyan
         $scan = Invoke-CadenceScan -File $File -FFmpegExecutable $FFmpegExecutable -Start 0 -Frames $Frames -Full $true
         if ($scan.Success) {
             foreach ($report in $scan.Reports) { $reports.Add($report) }
