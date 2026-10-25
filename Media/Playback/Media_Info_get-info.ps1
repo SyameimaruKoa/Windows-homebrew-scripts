@@ -511,108 +511,133 @@ function Show-TelecineAssessment {
 #region FFplayによるフィルター確認
 
 function Show-FFplayVerification {
-    param(
-        [string]$VideoPath,
-        [string]$FFprobeExecutable
-    )
+    param([string]$VideoPath, [string]$FFprobeExecutable)
 
-    # 音声のみのファイルに映像フィルターの確認コマンドは表示しない
+    $ffplay = Get-Command ffplay -ErrorAction SilentlyContinue
+    if (-not $ffplay) {
+        Write-Host 'ffplayが見つからないので再生ボタンは省略する。' -ForegroundColor Yellow
+        return
+    }
     if ($FFprobeExecutable) {
         $videoStream = & $FFprobeExecutable -v error -select_streams v:0 -show_entries stream=index -of 'csv=p=0' -i $VideoPath
-        if ($LASTEXITCODE -eq 0 -and -not $videoStream) {
-            return
-        }
+        if ($LASTEXITCODE -eq 0 -and -not $videoStream) { return }
     }
 
-    # Media_Action_play.bat の既定（画面に収めるモード）と同じ余白・縮小方法
+    # Media_Action_play.bat の既定の画面サイズ調整を維持する
     $screenWidth = 1920
     $screenHeight = 1080
     try {
         Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
-        $workingArea = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
-        $screenWidth = $workingArea.Width
-        $screenHeight = $workingArea.Height
+        Add-Type -AssemblyName System.Drawing -ErrorAction Stop
+        $area = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+        $screenWidth = $area.Width
+        $screenHeight = $area.Height
     }
     catch {
-        # 画面領域を取得できない場合は再生スクリプトと同じ既定値を使用
+        Write-Host '再生ボタンにはWindows Formsが必要。' -ForegroundColor Yellow
+        return
     }
     $maxWidth = [math]::Max(64, $screenWidth - 40)
     $maxHeight = [math]::Max(64, $screenHeight - 80)
     $fitScreen = "scale='min($maxWidth,iw)':'min($maxHeight,ih)':force_original_aspect_ratio=decrease"
 
-    # 映像ストリームに記録された公称fps（FFplayの実描画fpsではない）
-    $inputFps = 0.0
+    # 60i素材ではavg_frame_rateがフィールド側の59.94を示すこともある。
+    # そこで冒頭3秒の復号後PTS間隔から実際の入力フレーム頻度を推定する。
+    $observedFps = 0.0
     if ($FFprobeExecutable) {
-        $fpsData = & $FFprobeExecutable -v error -select_streams v:0 -show_entries stream=avg_frame_rate -of 'default=noprint_wrappers=1:nokey=1' -i $VideoPath
-        if ($LASTEXITCODE -eq 0 -and $fpsData) {
-            $fpsValue = [string](@($fpsData)[0])
-            if ($fpsValue -match '^(\d+)/(\d+)$' -and [double]$Matches[2] -gt 0) {
-                $inputFps = [double]$Matches[1] / [double]$Matches[2]
+        $ptsLines = @(& $FFprobeExecutable -v error -select_streams v:0 -read_intervals '%+3' -show_entries frame=best_effort_timestamp_time -of 'csv=p=0' -i $VideoPath 2>$null)
+        if ($LASTEXITCODE -eq 0 -and $ptsLines.Count -ge 12) {
+            $stamps = [System.Collections.Generic.List[double]]::new()
+            foreach ($line in $ptsLines) {
+                $value = [double]0.0
+                if ([double]::TryParse(([string]$line).Trim(), [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$value)) {
+                    $stamps.Add($value)
+                }
+            }
+            $deltas = [System.Collections.Generic.List[double]]::new()
+            for ($i = 1; $i -lt $stamps.Count; $i++) {
+                $delta = $stamps[$i] - $stamps[$i - 1]
+                if ($delta -gt 0.001 -and $delta -lt 1) { $deltas.Add($delta) }
+            }
+            if ($deltas.Count -ge 10) {
+                $sorted = @($deltas.ToArray() | Sort-Object)
+                $medianDelta = [double]$sorted[[int][math]::Floor($sorted.Count / 2)]
+                if ($medianDelta -gt 0) { $observedFps = 1.0 / $medianDelta }
             }
         }
     }
 
-    # PowerShellの引用符で囲み、空白・角括弧・シングルクォートを含むパスにも対応
-    $quotedPath = "'" + $VideoPath.Replace("'", "''") + "'"
-
-    $tests = @(
-        [pscustomobject]@{
-            Name = '1. 元映像（フィルターなし）'
-            Title = '原本'
-            Filter = ''
-            RateMultiplier = 1.0
-        },
-        [pscustomobject]@{
-            Name = '2. 逆テレシネのみ（fieldmatch + decimate）'
-            Title = '逆テレシネのみ'
-            Filter = 'fieldmatch=order=tff,decimate'
-            RateMultiplier = 0.8
-        },
-        [pscustomobject]@{
-            Name = '3. デインターレースのみ（Bwdif / 入力1フレームにつき出力1フレーム）'
-            Title = 'Bwdifのみ'
-            Filter = 'bwdif=mode=send_frame:parity=tff:deint=interlaced'
-            RateMultiplier = 1.0
-        },
-        [pscustomobject]@{
-            Name = '4. 逆テレシネ + 縞が残るフレームだけBwdif'
-            Title = '逆テレシネ+Bwdif'
-            Filter = 'fieldmatch=order=tff:combmatch=full,bwdif=mode=send_frame:parity=tff:deint=interlaced,decimate'
-            RateMultiplier = 0.8
-        }
+    # 確認用フィルターは短く保つ。59.94pと29.97pのBwdifを両方用意。
+    $modes = @(
+        @{ Name = '1  元映像'; Filter = ''; Rate = 1.0; Bob = $false },
+        @{ Name = '2  逆テレシネ'; Filter = 'fieldmatch=order=tff,decimate'; Rate = 0.8; Bob = $false },
+        @{ Name = '3  Bwdif（30p系 / send_frame）'; Filter = 'bwdif=mode=send_frame:parity=tff:deint=interlaced'; Rate = 1.0; Bob = $false },
+        @{ Name = '4  Bwdif Bob（60p系 / send_field）'; Filter = 'bwdif=mode=send_field:parity=tff:deint=interlaced'; Rate = 2.0; Bob = $true },
+        @{ Name = '5  逆テレシネ + Bwdif'; Filter = 'fieldmatch=order=tff:combmatch=full,bwdif=mode=send_frame:parity=tff:deint=interlaced,decimate'; Rate = 0.8; Bob = $false },
+        @{ Name = '6  隣接フレームの差分（元映像）'; Filter = 'tblend=all_mode=difference'; Rate = 1.0; Bob = $false },
+        @{ Name = '7  隣接フレームの差分（Bob後）'; Filter = 'bwdif=mode=send_field:parity=tff:deint=interlaced,tblend=all_mode=difference'; Rate = 2.0; Bob = $true }
     )
 
-    Write-Host ''
-    Write-Host '[ FFplay確認用コマンド（PowerShellにコピーして実行） ]' -ForegroundColor Cyan
-    Write-Host "再生ウィンドウ: Media_Action_play.batと同じ画面内に収める設定（画面の余白 40×80）"
-    foreach ($test in $tests) {
-        $label = $test.Title
-        $caption = 'Frame %{n}'
-        if ($inputFps -gt 0) {
-            $expectedFps = ($inputFps * $test.RateMultiplier).ToString('0.###', [Globalization.CultureInfo]::InvariantCulture)
-            $label += " [$expectedFps fps]"
-            $caption = "Expected $expectedFps fps  Frame %{n}"
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = 'FFplay比較 - ' + [IO.Path]::GetFileName($VideoPath)
+    $form.StartPosition = 'CenterScreen'
+    $form.Size = New-Object System.Drawing.Size(690, 530)
+    $form.MinimumSize = New-Object System.Drawing.Size(690, 530)
+    $form.MaximizeBox = $false
+
+    $info = New-Object System.Windows.Forms.Label
+    $info.SetBounds(15, 12, 650, 42)
+    $inputRateLabel = if ($observedFps -gt 0) {
+        '冒頭PTSから推定した入力fps: ' + $observedFps.ToString('0.###', [Globalization.CultureInfo]::InvariantCulture)
+    }
+    else { '入力fps: 時刻情報から推定できませんでした' }
+    $info.Text = $inputRateLabel + [Environment]::NewLine + '各モードのfpsは推定出力値（実描画FPSではありません）。'
+    $form.Controls.Add($info)
+
+    $psQuote = { param([string]$v) "'" + $v.Replace("'", "''") + "'" }
+    $index = 0
+    foreach ($mode in $modes) {
+        $suffix = ''
+        if ($observedFps -gt 0) {
+            $rateValue = ($observedFps * [double]$mode.Rate).ToString('0.###', [Globalization.CultureInfo]::InvariantCulture)
+            $suffix = " | 約$rateValue fps"
+            if ($mode.Bob) { $suffix += '（i判定時）' }
         }
 
-        # 描画FPSの実測ではなくフィルター後の公称値。コマ送りで追えるフレーム番号も併記。
-        $textOverlay = "drawtext=text='$caption':x=10:y=10:fontsize=22:fontcolor=white:box=1:boxcolor=black@0.65"
-        $filter = if ($test.Filter) { "$($test.Filter),$fitScreen,$textOverlay" } else { "$fitScreen,$textOverlay" }
-        $command = 'ffplay -hide_banner -an -sn -window_title ' +
-            "'" + $label + "'" +
-            ' -vf "' + $filter + '" -i ' + $quotedPath
+        $button = New-Object System.Windows.Forms.Button
+        $button.SetBounds(15, (68 + $index * 50), 650, 40)
+        $button.Text = $mode.Name + $suffix
+        $button.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+        $button.UseVisualStyleBackColor = $true
 
-        Write-Host $test.Name -ForegroundColor DarkCyan
-        Write-Host $command
+        $filter = if ($mode.Filter) { "$($mode.Filter),$fitScreen" } else { $fitScreen }
+        $execution = '& ' + (& $psQuote $ffplay.Source) +
+            ' -hide_banner -an -sn -window_title ' + (& $psQuote ($mode.Name + $suffix)) +
+            ' -vf ' + (& $psQuote $filter) +
+            ' -i ' + (& $psQuote $VideoPath)
+        $button.Tag = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($execution))
+        $button.Add_Click({
+            param($sender, $eventArgs)
+            # 元のログへffplayの出力を混ぜないよう別ターミナルで起動
+            Start-Process -FilePath 'powershell.exe' -ArgumentList ("-NoProfile -NoExit -EncodedCommand " + [string]$sender.Tag) -WindowStyle Normal
+        })
+        $form.Controls.Add($button)
+        $index++
     }
 
-    Write-Host '表示するFPSはフィルター後の想定値であり、画面への実描画FPSの計測ではないぞ。'
-    Write-Host 'Frame番号はフィルター後のフレーム番号（0始まり）じゃ。'
+    $help = New-Object System.Windows.Forms.Label
+    $help.SetBounds(15, 426, 650, 55)
+    $help.Text = 'S: 1コマ進む　Space: 再生/停止　左右: 10秒移動　Q/Esc: 終了' +
+        [Environment]::NewLine +
+        '差分は変化が少ないほど暗くなる。静止場面や圧縮ノイズに注意。'
+    $form.Controls.Add($help)
+
     Write-Host ''
-    Write-Host 'コマ送り: FFplayウィンドウを選択して S キー（1フレーム進めて停止。繰り返し押せる）'
-    Write-Host 'Space/P: 再生・一時停止 | 左右キー: ±10秒 | Q/Esc: 終了'
-    Write-Host '同じ動きのある場面で元映像と各フィルターを比較するのじゃ。'
-    Write-Host '注意: 逆テレシネ候補を30p/60i素材に使うと、不要なフレーム落ちが発生し得るぞ。'
-    Write-Host '注意: FFplayのフィルター確認はHandBrakeのフィルター挙動と完全には同一でないぞ。'
+    Write-Host '[ FFplay比較ボタン ]' -ForegroundColor Cyan
+    Write-Host 'クリックすると別のPowerShellウィンドウでFFplayが起動する。'
+    Write-Host '累積フレーム番号は表示しない。fpsは冒頭のPTSからの推定値。'
+    [void]$form.ShowDialog()
+    $form.Dispose()
 }
 
 #endregion FFplayによるフィルター確認
