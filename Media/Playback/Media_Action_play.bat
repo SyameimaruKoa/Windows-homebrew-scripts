@@ -29,14 +29,16 @@ echo   [1] 画面からはみ出さないように調整するモード (デフォルト)
 echo   [2] ウィンドウサイズを1280x720の大きい辺に合わせるモード
 echo   [3] 従来通りのドットバイドットモード
 echo   [4] XREAL 1S 3D: SBS左右入替・16:10維持・全画面
+echo   [5] XREAL 1S 3D: SBS左右交換済み・16:10維持・全画面
 echo -------------------------------------------------
 set PLAY_MODE=1
-set /p PLAY_MODE="モード選択 (1-4) > "
+set /p PLAY_MODE="モード選択 (1-5) > "
 
 set "AUTO_SCALE="
 if "%PLAY_MODE%"=="1" goto :mode_fit_screen
 if "%PLAY_MODE%"=="2" goto :mode_scale_1280
 if "%PLAY_MODE%"=="4" goto :mode_xreal
+if "%PLAY_MODE%"=="5" goto :mode_xreal
 goto :mode_done
 
 :mode_fit_screen
@@ -67,7 +69,9 @@ if not defined XREAL_X (
     echo XREAL側をFull SBSの3Dモードにしてからやり直すのじゃ。
     exit /b 1
 )
-set "AUTO_SCALE=split=2[l][r];[l]crop=iw/2:ih:0:0,scale=1920:1080:force_original_aspect_ratio=decrease:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[left];[r]crop=iw/2:ih:iw/2:0,scale=1920:1080:force_original_aspect_ratio=decrease:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[right];[right][left]hstack=inputs=2,setsar=1"
+set "XREAL_ORDER=[right][left]"
+if "%PLAY_MODE%"=="5" set "XREAL_ORDER=[left][right]"
+set "AUTO_SCALE=split=2[l][r];[l]crop=iw/2:ih:0:0,scale=1920:1080:force_original_aspect_ratio=decrease:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[left];[r]crop=iw/2:ih:iw/2:0,scale=1920:1080:force_original_aspect_ratio=decrease:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black[right];%XREAL_ORDER%hstack=inputs=2,setsar=1
 goto :mode_done
 
 :mode_done
@@ -84,12 +88,13 @@ echo -------------------------------------------------
 echo これから再生を開始する。心して観るのじゃ！
 echo.
 
-if "%PLAY_MODE%"=="4" (
-    ffplay -hide_banner -left %XREAL_X% -top %XREAL_Y% -fs -i "%~1" %AF_OPTION% %VF_OPTION%
-) else (
-    ffplay -hide_banner -i "%~1" %AF_OPTION% %VF_OPTION%
-)
+if "%PLAY_MODE%"=="4" goto :play_xreal
+if "%PLAY_MODE%"=="5" goto :play_xreal
+ffplay -hide_banner -i "%~1" %AF_OPTION% %VF_OPTION%
+goto :eof
 
+:play_xreal
+ffplay -hide_banner -left %XREAL_X% -top %XREAL_Y% -fs -i "%~1" %AF_OPTION% %VF_OPTION%
 goto :eof
 
 :show_help
@@ -107,10 +112,12 @@ echo   3: ドットバイドット
 echo   4: XREAL 1S Full SBS (3840x1080) の画面で全画面再生
 echo      SBSの左右を入れ替え、各眼16:10の縦横比を維持する。
 echo      各眼の左右に黒帯を追加し、映像は再エンコードしない。
+echo   5: XREAL 1S Full SBS (3840x1080) 左右交換済みの映像向け
+echo      左右を再交換せず、各眼の比率を維持して表示する。
 echo.
 echo [補足]
 echo   ・ffplay が PATH に通っている必要があります。
-echo   ・モード4では、XREAL 1Sの3D表示モードを先に有効化してください。
+echo   ・モード4/5では、XREAL 1Sの3D表示モードを先に有効化してください。
 echo   ・モード4の終了は Esc または q で行えます。
 echo.
 echo 何かキーを押すと閉じます...
