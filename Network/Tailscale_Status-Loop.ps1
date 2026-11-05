@@ -15,6 +15,7 @@
       - ローカルノードの Tailscale IPv4 / IPv6
       - Online / Active / Direct / DERP / Peer Relay / SubnetRoutes / ExitCandidates の集計
       - Peer ごとの Online / Active / 接続経路
+      - ADDR 列の長い接続先は列幅を維持したまま横スクロール表示
       - Peer ごとの Tailscale IPv4 アドレス
       - Peer ごとの通信量（RX / TX）と通信速度（通信量が多い方向のみ、bit/s）
       - ネットワークマップ / MagicSock / WireGuard Engine の不整合
@@ -78,6 +79,7 @@ $ErrorActionPreference = 'Stop'
 $script:PreviousFrameLineCount = 0
 $script:PreviousStats = @{}
 $script:PreviousStatsTimestamp = $null
+$script:AddressScrollStartedAt = [DateTimeOffset]::UtcNow
 #endregion
 
 #region FORMAT
@@ -335,6 +337,47 @@ function Format-Cell {
     )
 
     return (Limit-Text -Text $Text -Width $Width).PadRight($Width)
+}
+
+function Format-ScrollingAddress {
+    param(
+        [AllowNull()]
+        [string]$Text,
+
+        [Parameter(Mandatory)]
+        [int]$Width,
+
+        [Parameter(Mandatory)]
+        [double]$ElapsedSeconds
+    )
+
+    if ([string]::IsNullOrEmpty($Text) -or $Text.Length -le $Width -or $Width -le 2) {
+        return (Format-Cell -Text $Text -Width $Width)
+    }
+
+    $viewportWidth = $Width - 2
+    $maxOffset = $Text.Length - $viewportWidth
+    $holdSteps = 4
+    $cycleLength = 2 * $maxOffset + 2 * $holdSteps
+    $position = [long][math]::Floor([math]::Max(0, $ElapsedSeconds) * 2) % $cycleLength
+
+    if ($position -lt $holdSteps) {
+        $offset = 0
+    }
+    elseif ($position -lt ($holdSteps + $maxOffset)) {
+        $offset = $position - $holdSteps
+    }
+    elseif ($position -lt ($maxOffset + 2 * $holdSteps)) {
+        $offset = $maxOffset
+    }
+    else {
+        $offset = $cycleLength - $position
+    }
+
+    $leftMarker = if ($offset -gt 0) { '‹' } else { ' ' }
+    $rightMarker = if ($offset -lt $maxOffset) { '›' } else { ' ' }
+
+    return ($leftMarker + $Text.Substring([int]$offset, $viewportWidth) + $rightMarker)
 }
 #endregion
 
@@ -724,6 +767,7 @@ function New-Frame {
 
     $width = Get-WindowWidth
     $frame = [System.Collections.Generic.List[object]]::new()
+    $addressScrollElapsedSeconds = ([DateTimeOffset]::UtcNow - $script:AddressScrollStartedAt).TotalSeconds
 
     $now = Get-Date
     $sampleTime = [DateTimeOffset]::UtcNow
@@ -931,7 +975,7 @@ function New-Frame {
             $values = @(
                 (Format-Cell -Text $state -Width 6),
                 (Format-Cell -Text $path -Width 11),
-                (Format-Cell -Text $address -Width 22),
+                (Format-ScrollingAddress -Text $address -Width 22 -ElapsedSeconds $addressScrollElapsedSeconds),
                 (Format-Cell -Text $hostName -Width 20),
                 (Format-Cell -Text $os -Width 7),
                 (Format-Cell -Text $ip -Width 15),
@@ -946,7 +990,7 @@ function New-Frame {
             $values = @(
                 (Format-Cell -Text $state -Width 6),
                 (Format-Cell -Text $path -Width 11),
-                (Format-Cell -Text $address -Width 22),
+                (Format-ScrollingAddress -Text $address -Width 22 -ElapsedSeconds $addressScrollElapsedSeconds),
                 (Format-Cell -Text $hostName -Width 22),
                 (Format-Cell -Text $os -Width 7),
                 (Format-Cell -Text $ip -Width 15),
