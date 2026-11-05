@@ -28,8 +28,8 @@ echo 再生モードを選択するのじゃ：
 echo   [1] 画面からはみ出さないように調整するモード (デフォルト)
 echo   [2] ウィンドウサイズを1280x720の大きい辺に合わせるモード
 echo   [3] 従来通りのドットバイドットモード
-echo   [4] XREAL 1S 3D: SBS左右入替・16:10維持・全画面
-echo   [5] XREAL 1S 3D: SBS左右交換済み・16:10維持・全画面
+echo   [4] XREAL 1S 3D: 入力 左=右眼 / 右=左眼 (左右交換)
+echo   [5] XREAL 1S 3D: 入力 左=左眼 / 右=右眼 (交換なし)
 echo -------------------------------------------------
 set PLAY_MODE=1
 set /p PLAY_MODE="モード選択 (1-5) > "
@@ -88,14 +88,26 @@ echo -------------------------------------------------
 echo これから再生を開始する。心して観るのじゃ！
 echo.
 
-if "%PLAY_MODE%"=="4" goto :play_xreal
-if "%PLAY_MODE%"=="5" goto :play_xreal
-ffplay -hide_banner -i "%~1" %AF_OPTION% %VF_OPTION%
+set "XREAL_PLAY_ARGS="
+if "%PLAY_MODE%"=="4" set "XREAL_PLAY_ARGS=-left %XREAL_X% -top %XREAL_Y% -fs"
+if "%PLAY_MODE%"=="5" set "XREAL_PLAY_ARGS=-left %XREAL_X% -top %XREAL_Y% -fs"
+goto :play_with_hw
+
+:play_with_hw
+set "GPU_LOG=%TEMP%\Media_Action_play_%RANDOM%_%RANDOM%_gpu.log"
+ffplay -hide_banner -loglevel error -nostats -hwaccel d3d11va %XREAL_PLAY_ARGS% -i "%~1" %AF_OPTION% %VF_OPTION% 2>"%GPU_LOG%"
+set "GPU_EXIT=%ERRORLEVEL%"
+if not "%GPU_EXIT%"=="0" goto :play_cpu
+for %%L in ("%GPU_LOG%") do if %%~zL GTR 0 goto :play_cpu
+if exist "%GPU_LOG%" del /q "%GPU_LOG%" >nul 2>&1
 goto :eof
 
-:play_xreal
-ffplay -hide_banner -left %XREAL_X% -top %XREAL_Y% -fs -i "%~1" %AF_OPTION% %VF_OPTION%
-goto :eof
+:play_cpu
+echo [GPU] Hardware decoding failed. Retrying with CPU.
+if exist "%GPU_LOG%" type "%GPU_LOG%"
+if exist "%GPU_LOG%" del /q "%GPU_LOG%" >nul 2>&1
+ffplay -hide_banner %XREAL_PLAY_ARGS% -i "%~1" %AF_OPTION% %VF_OPTION%
+exit /b %ERRORLEVEL%
 
 :show_help
 echo.
@@ -109,16 +121,19 @@ echo [再生モード]
 echo   1: 画面サイズに収める（デフォルト）
 echo   2: 最大1280x720を基準にスケーリング
 echo   3: ドットバイドット
-echo   4: XREAL 1S Full SBS (3840x1080) の画面で全画面再生
-echo      SBSの左右を入れ替え、各眼16:10の縦横比を維持する。
-echo      各眼の左右に黒帯を追加し、映像は再エンコードしない。
-echo   5: XREAL 1S Full SBS (3840x1080) 左右交換済みの映像向け
-echo      左右を再交換せず、各眼の比率を維持して表示する。
+echo   4: 入力の左半分が右眼、右半分が左眼のSBS
+echo      表示時に左右を入れ替える。
+echo   5: 入力の左半分が左眼、右半分が右眼のSBS
+echo      左右を入れ替えずに表示する。
+echo   共通: Full SBS (3840x1080) へ各眼の縦横比を維持して表示。
+echo         解像度や16:10・16:9等の縦横比を問わず、必要なら黒帯を追加。
+echo         映像は再エンコードしない。
 echo.
 echo [補足]
 echo   ・ffplay が PATH に通っている必要があります。
 echo   ・モード4/5では、XREAL 1Sの3D表示モードを先に有効化してください。
-echo   ・モード4の終了は Esc または q で行えます。
+echo   ・モード4/5の終了は Esc または q で行えます。
+echo   GPU: D3D11VAを優先し、再生エラー時はCPUに切り替える。
 echo.
 echo 何かキーを押すと閉じます...
 pause
