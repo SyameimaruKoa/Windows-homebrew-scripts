@@ -42,7 +42,7 @@ for %%F in (%*) do (
     rem ˆêŽžƒtƒ@ƒCƒ‹‚ðíœ
     del "!vbsPath!" > nul 2>&1
 
-    echo   => [ì¬Š®—¹] "!shortcutPath!"
+    echo   =^> [ì¬Š®—¹] "!shortcutPath!"
     echo.
 )
 
