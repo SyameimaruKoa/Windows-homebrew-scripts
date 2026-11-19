@@ -712,7 +712,9 @@ function Show-FFplayVerification {
         $button.Add_Click({
             param($sender, $eventArgs)
             # 元のログへffplayの出力を混ぜないよう別ターミナルで起動
-            Start-Process -FilePath 'powershell.exe' -ArgumentList ("-NoProfile -EncodedCommand " + [string]$sender.Tag) -WindowStyle Normal
+            $pwshExe = (Get-Command pwsh.exe -CommandType Application -ErrorAction SilentlyContinue).Source
+            if (-not $pwshExe) { $pwshExe = Join-Path $PSHOME 'pwsh.exe' }
+            Start-Process -FilePath $pwshExe -ArgumentList ("-NoProfile -EncodedCommand " + [string]$sender.Tag) -WindowStyle Normal
         })
         $form.Controls.Add($button)
 

@@ -19,7 +19,7 @@
 .EXAMPLE
     .\Enable-OpenSSHServer.ps1 -WhatIf -Enable
 .NOTES
-    Windows PowerShell 5.1以降。管理者権限と、必要に応じてWindows Updateへの接続が必要です。
+    PowerShell 7 以降。管理者権限と、必要に応じてWindows Updateへの接続が必要です。
     既存設定でポートを変更している場合は、そのポートのファイアウォール規則を別途設定してください。
 .LINK
     https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse
@@ -98,7 +98,11 @@ exit $workerExitCode
 '@
             $bootstrap = $bootstrap.Replace('__LOG_PATH__', $logPath.Replace("'", "''")).Replace('__SCRIPT_COMMAND__', $command)
             $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($bootstrap))
-            $powerShellPath = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+            $powerShellPath = (Get-Command pwsh.exe -CommandType Application -ErrorAction SilentlyContinue).Source
+            if (-not $powerShellPath) { $powerShellPath = Join-Path $PSHOME 'pwsh.exe' }
+            if (-not (Test-Path -LiteralPath $powerShellPath -PathType Leaf)) {
+                throw 'PowerShell 7 (pwsh.exe) が見つからぬ。'
+            }
             $worker = Start-Process -FilePath $powerShellPath -Verb RunAs -WindowStyle Hidden -ArgumentList @('-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded) -Wait -PassThru
             try {
                 $details = ''

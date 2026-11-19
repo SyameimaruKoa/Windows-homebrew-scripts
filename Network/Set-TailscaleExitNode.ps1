@@ -284,7 +284,7 @@ catch {
     TargetSSIDs に一致すれば ExitNodeIP を設定し、一致しなければ解除する。
 
     通常の PowerShell からの配列指定と、タスクスケジューラの
-    powershell.exe -File から渡されたカンマ区切り文字列の両方に対応。
+    pwsh.exe -File から渡されたカンマ区切り文字列の両方に対応。
     SSID 自体にカンマが含まれる場合は対応しない。
 
     Tailscale を含む外部コマンドに実行時間制限を設け、停止時は
@@ -308,12 +308,12 @@ catch {
 .EXAMPLE
     .\Set-TailscaleExitNode.ps1 -TargetSSIDs "Saizeriya_Free,tech-freewifi" -ExitNodeIP "100.113.112.21"
 .EXAMPLE
-    powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\Scripts\Set-TailscaleExitNode.ps1" -TargetSSIDs "Saizeriya_Free,tech-freewifi" -ExitNodeIP "100.113.112.21"
+    pwsh.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\Scripts\Set-TailscaleExitNode.ps1" -TargetSSIDs "Saizeriya_Free,tech-freewifi" -ExitNodeIP "100.113.112.21"
 .EXAMPLE
     .\Set-TailscaleExitNode.ps1 -h
 .NOTES
-    Windows PowerShell 5.1 以降と Tailscale CLI が必要じゃ。
-    タスクスケジューラでは powershell.exe を直接指定し、
+    PowerShell 7 以降と Tailscale CLI が必要じゃ。
+    タスクスケジューラでは pwsh.exe を直接指定し、
     -NoExit や cmd.exe /k は付けないこと。
     ログ: %ProgramData%\Windows-homebrew-scripts\Logs\Set-TailscaleExitNode.log
     ログの書き込みが拒否された場合は TEMP に保存する。

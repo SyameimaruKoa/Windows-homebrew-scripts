@@ -22,7 +22,9 @@ if not errorlevel 1 (
   gsudo "%~f0" %*
   exit /b
 )
-@powershell start-process powershell %~0 -verb runas
+@for %%P in (pwsh.exe) do set "PWSH_EXE=%%~$PATH:P"
+@if not defined PWSH_EXE if exist "%ProgramFiles%\PowerShell\7\pwsh.exe" set "PWSH_EXE=%ProgramFiles%\PowerShell\7\pwsh.exe"
+@"%PWSH_EXE%" -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
 if %errorlevel%==1 (
   echo 権限要求を拒否されたので再度要求します。
   goto Administrator

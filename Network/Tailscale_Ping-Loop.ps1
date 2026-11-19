@@ -35,14 +35,20 @@ function Invoke-SelfElevation {
         [string[]]$ArgumentList
     )
 
+    $pwshExe = (Get-Command pwsh.exe -CommandType Application -ErrorAction SilentlyContinue).Source
+    if (-not $pwshExe) { $pwshExe = Join-Path $PSHOME 'pwsh.exe' }
+    if (-not (Test-Path -LiteralPath $pwshExe -PathType Leaf)) {
+        throw 'PowerShell 7 (pwsh.exe) が見つからぬ。'
+    }
+
     $gsudoCommand = Get-Command gsudo -ErrorAction SilentlyContinue
     if ($gsudoCommand) {
-        $allArgs = @('powershell.exe') + $ArgumentList
+        $allArgs = @($pwshExe) + $ArgumentList
         & $gsudoCommand @allArgs
         exit
     }
 
-    Start-Process powershell.exe -ArgumentList (@('-NoExit') + $ArgumentList) -Verb RunAs
+    Start-Process -FilePath $pwshExe -ArgumentList (@('-NoExit') + $ArgumentList) -Verb RunAs
     exit
 }
 
