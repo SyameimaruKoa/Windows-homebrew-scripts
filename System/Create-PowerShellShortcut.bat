@@ -30,9 +30,9 @@ for %%F in (%*) do (
       echo Set oWS = WScript.CreateObject("WScript.Shell"^)
       echo sLinkFile = "!shortcutPath!"
       echo Set oLink = oWS.CreateShortcut(sLinkFile^)
-      echo oLink.TargetPath = "powershell.exe"
+      echo oLink.TargetPath = "pwsh.exe"
       echo oLink.Arguments = "-ExecutionPolicy Bypass -NoProfile -File ""%%~F"""
-      echo oLink.IconLocation = "powershell.exe, 0"
+      echo oLink.IconLocation = "pwsh.exe, 0"
       echo oLink.Save
     ) > "!vbsPath!"
 

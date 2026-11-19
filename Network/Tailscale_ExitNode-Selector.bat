@@ -17,9 +17,9 @@ if not defined TAILSCALE_EXE (
     pause
     exit /b 1
 )
-where powershell.exe >nul 2>&1
+where pwsh.exe >nul 2>&1
 if errorlevel 1 (
-    echo [エラー] Windows PowerShell が見つかりません。
+    echo [エラー] PowerShell 7 が見つかりません。
     pause
     exit /b 1
 )
@@ -43,9 +43,9 @@ if errorlevel 1 (
     goto menu
 )
 
-rem JSON は Windows 標準の PowerShell で解析します。候補と現在の選択状態を表示します。
+rem JSON は PowerShell 7 で解析します。候補と現在の選択状態を表示します。
 rem CLI から受け取る IP アドレスは PowerShell 側で形式を制限します。
-for /f "usebackq tokens=1-4 delims=|" %%A in (`powershell.exe -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; $s=ConvertFrom-Json -InputObject (Get-Content -LiteralPath $env:TS_EXIT_JSON -Raw -Encoding UTF8); foreach($property in $s.Peer.PSObject.Properties){$p=$property.Value; if($p.ExitNodeOption -or $p.ExitNode){$ip=@($p.TailscaleIPs)[0]; if($ip -match '^[0-9a-fA-F:.]+$'){Write-Output ($ip+'|'+$p.HostName+'|'+$p.Online+'|'+$p.ExitNode)}}}" 2^>nul`) do (
+for /f "usebackq tokens=1-4 delims=|" %%A in (`pwsh.exe -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; $s=ConvertFrom-Json -InputObject (Get-Content -LiteralPath $env:TS_EXIT_JSON -Raw -Encoding UTF8); foreach($property in $s.Peer.PSObject.Properties){$p=$property.Value; if($p.ExitNodeOption -or $p.ExitNode){$ip=@($p.TailscaleIPs)[0]; if($ip -match '^[0-9a-fA-F:.]+$'){Write-Output ($ip+'|'+$p.HostName+'|'+$p.Online+'|'+$p.ExitNode)}}}" 2^>nul`) do (
     set /a NODE_COUNT+=1 >nul
     set "NODE_!NODE_COUNT!=%%A"
     set "NODE_FLAGS="
@@ -138,7 +138,7 @@ echo 仕様:
 echo   - Tailscale が公開する Exit Node 候補と現在の使用状態を表示します。
 echo   - オフラインのノードも一覧に表示し、オフラインと明記します。
 echo   - tailscale set を使用し、他の Tailscale 設定は変更しません。
-echo   - Windows 標準の PowerShell と Tailscale CLI が必要です。
+echo   - PowerShell 7 と Tailscale CLI が必要です。
 echo   - 通常、管理者権限は不要です。Tailscale 側のポリシーには従います。
 echo   - Tailscale はログイン済みで、Exit Node が利用許可されている必要があります。
 echo.

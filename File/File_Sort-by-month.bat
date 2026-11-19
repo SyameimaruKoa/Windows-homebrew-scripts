@@ -19,7 +19,7 @@ cd /d "%TARGET%"
 rem ファイルのみを対象にし、LastWriteTime をロケール非依存で取得して yyyy-MM に仕分け
 for /f "delims=" %%F in ('dir /b /a:-d') do (
   set "FILE=%%F"
-  for /f "usebackq delims=" %%T in (`powershell -NoProfile -Command "(Get-Item -LiteralPath '%CD%\!FILE!').LastWriteTime.ToString('yyyy-MM')"`) do (
+  for /f "usebackq delims=" %%T in (`pwsh -NoProfile -Command "(Get-Item -LiteralPath '%CD%\!FILE!').LastWriteTime.ToString('yyyy-MM')"`) do (
     set "DESTFOLDER=%%T"
   )
   if not exist "!DESTFOLDER!" mkdir "!DESTFOLDER!"

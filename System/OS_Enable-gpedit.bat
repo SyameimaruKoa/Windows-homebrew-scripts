@@ -21,7 +21,7 @@ if not errorlevel 1 (
   gsudo "%~f0" %*
   exit /b
 )
-powershell.exe -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+pwsh.exe -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
 if %errorlevel%==1 (
   echo 権限要求を拒否されたので再度要求します。
   goto Administrator

@@ -368,7 +368,7 @@ if errorlevel 1 (
         echo    - 処理成功: "!final_output!"
         if "%_session_mpd_mode%"=="yes" (
             rem session.mpdの日付を出力ファイルに引き継ぐ
-            powershell -NoProfile -Command "$s = Get-Item -LiteralPath $env:input_file -ErrorAction Stop; $d = Get-Item -LiteralPath $env:final_output -ErrorAction Stop; $d.LastWriteTime = $s.LastWriteTime; $d.CreationTime = $s.CreationTime" >nul 2>&1
+            pwsh -NoProfile -Command "$s = Get-Item -LiteralPath $env:input_file -ErrorAction Stop; $d = Get-Item -LiteralPath $env:final_output -ErrorAction Stop; $d.LastWriteTime = $s.LastWriteTime; $d.CreationTime = $s.CreationTime" >nul 2>&1
             if errorlevel 1 (
                 echo    - [エラー] 日付の継承に失敗したため、元フォルダは残すぞ。
                 set "_error_occurred=1"
@@ -405,7 +405,7 @@ if not exist "%~1\session.mpd" (
     set "_error_occurred=1"
     goto :eof
 )
-powershell -NoProfile -Command "Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($env:parent_dir, [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs, [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin, [Microsoft.VisualBasic.FileIO.UICancelOption]::ThrowException)" >nul 2>&1
+pwsh -NoProfile -Command "Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($env:parent_dir, [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs, [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin, [Microsoft.VisualBasic.FileIO.UICancelOption]::ThrowException)" >nul 2>&1
 if errorlevel 1 (
     echo    - [エラー] 元フォルダをゴミ箱へ移動できなかったぞ: "%~1"
     set "_error_occurred=1"

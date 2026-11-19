@@ -44,7 +44,7 @@ goto :mode_done
 :mode_fit_screen
 set SCREEN_W=1920
 set SCREEN_H=1080
-for /f "tokens=1,2 delims=," %%A in ('powershell -Command "Add-Type -AssemblyName System.Windows.Forms; $wa = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea; '{0},{1}' -f $wa.Width, $wa.Height"') do (
+for /f "tokens=1,2 delims=," %%A in ('pwsh -Command "Add-Type -AssemblyName System.Windows.Forms; $wa = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea; '{0},{1}' -f $wa.Width, $wa.Height"') do (
     set SCREEN_W=%%A
     set SCREEN_H=%%B
 )
@@ -60,7 +60,7 @@ goto :mode_done
 :mode_xreal
 set "XREAL_X="
 set "XREAL_Y="
-for /f "tokens=1,2 delims=," %%A in ('powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; foreach ($s in [System.Windows.Forms.Screen]::AllScreens) { if ($s.Bounds.Width -eq 3840 -and $s.Bounds.Height -eq 1080) { Write-Output ([string]$s.Bounds.X + [char]44 + [string]$s.Bounds.Y); break } }"') do (
+for /f "tokens=1,2 delims=," %%A in ('pwsh -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; foreach ($s in [System.Windows.Forms.Screen]::AllScreens) { if ($s.Bounds.Width -eq 3840 -and $s.Bounds.Height -eq 1080) { Write-Output ([string]$s.Bounds.X + [char]44 + [string]$s.Bounds.Y); break } }"') do (
     set "XREAL_X=%%A"
     set "XREAL_Y=%%B"
 )
