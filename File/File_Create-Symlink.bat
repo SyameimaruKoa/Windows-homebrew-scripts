@@ -155,7 +155,7 @@ if /i "!mode!"=="skip_ask_name" goto skip_name_input
 
 echo.
 echo  【名】作成するリンクの名前を入力せよ
-echo  (空欄でEnter -> "!lname!")
+echo  (空欄でEnter -^> "!lname!")
 set "input_name="
 set /P "input_name=> "
 if not "!input_name!"=="" set "lname=!input_name!"
@@ -164,10 +164,12 @@ if not "!input_name!"=="" set "lname=!input_name!"
 set "full_path=!dst!\!lname!"
 
 rem --- 存在確認と上書き (厳格なy/n) ---
-if exist "!full_path!" call :confirm_and_delete "!full_path!" "!lname!"
-if errorlevel 1 (
-  endlocal
-  exit /b
+if exist "!full_path!" (
+  call :confirm_and_delete "!full_path!" "!lname!"
+  if errorlevel 1 (
+    endlocal
+    exit /b
+  )
 )
 
 rem --- 作成実行 ---
@@ -234,7 +236,7 @@ echo.
 echo [使い方]
 echo  1. 引数なし (対話モード):
 echo  %~nx0
-echo  元ファイルを入力 -> 保存先を入力 -> 名前を入力 の順でループします。
+echo  元ファイルを入力 -^> 保存先を入力 -^> 名前を入力 の順でループします。
 echo.
 echo  2. ファイルを1つドラッグ＆ドロップ:
 echo  %~nx0 ^<source_path^>
